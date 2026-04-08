@@ -1,0 +1,228 @@
+'use client'
+
+/**
+ * /dashboard/diagnostics — 회원 원고 진단 페이지
+ *
+ * - 새 원고 업로드 (FileUploader)
+ * - 과거 진단 이력 목록 (Supabase 직접 쿼리는 서버 컴포넌트에서,
+ *   업로드/폴링은 클라이언트 컴포넌트에서)
+ */
+
+import { useState, useCallback, useRef } from 'react'
+import Link from 'next/link'
+import FileUploader from '@/components/diagnostics/FileUploader'
+import DiagnosticReport from '@/components/diagnostics/DiagnosticReport'
+import type { Diagnostic, DiagnosticReport as ReportType } from '@/types'
+
+type Step = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error'
+
+const POLL_INTERVAL_MS = 2000
+const POLL_MAX_ATTEMPTS = 90
+
+export const metadata = { title: '원고 진단' }
+
+export default function DashboardDiagnosticsPage() {
+  const [step, setStep] = useState<Step>('idle')
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [report, setReport] = useState<ReportType | null>(null)
+  const [diagnosticId, setDiagnosticId] = useState<string | null>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollCount = useRef(0)
+
+  function stopPolling() {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }
+
+  const startPolling = useCallback((id: string) => {
+    stopPolling()
+    pollCount.current = 0
+    setStep('analyzing')
+
+    pollRef.current = setInterval(async () => {
+      pollCount.current++
+
+      if (pollCount.current > POLL_MAX_ATTEMPTS) {
+        stopPolling()
+        setStep('error')
+        setErrorMsg('분석 시간이 초과되었습니다. 다시 시도해 주세요.')
+        return
+      }
+
+      try {
+        const res = await fetch(`/api/diagnostics?id=${id}`)
+
+        if (!res.ok) {
+          stopPolling()
+          setStep('error')
+          setErrorMsg('분석 결과를 불러오는 중 오류가 발생했습니다.')
+          return
+        }
+
+        const json = await res.json()
+        const diagnostic: Diagnostic = json.data
+
+        if (diagnostic.status === 'completed' && diagnostic.report) {
+          stopPolling()
+          setReport(diagnostic.report as ReportType)
+          setStep('done')
+        } else if (diagnostic.status === 'failed') {
+          stopPolling()
+          setStep('error')
+          setErrorMsg('원고 분석에 실패했습니다. 파일을 확인 후 다시 시도해 주세요.')
+        }
+      } catch {
+        // 네트워크 오류 → 재시도
+      }
+    }, POLL_INTERVAL_MS)
+  }, [])
+
+  async function handleFile(file: File) {
+    setStep('uploading')
+    setErrorMsg(null)
+
+    // 회원은 session_token = 임시 UUID (claim은 서버에서 user_id로 바로 연결)
+    const sessionToken = crypto.randomUUID()
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('session_token', sessionToken)
+
+    try {
+      const res = await fetch('/api/diagnostics', { method: 'POST', body: formData })
+      const json = await res.json()
+
+      if (!res.ok) {
+        setStep('error')
+        setErrorMsg(json.error ?? '업로드 중 오류가 발생했습니다.')
+        return
+      }
+
+      const id: string = json.data.id
+      setDiagnosticId(id)
+      startPolling(id)
+    } catch {
+      setStep('error')
+      setErrorMsg('서버에 연결할 수 없습니다.')
+    }
+  }
+
+  function handleReset() {
+    stopPolling()
+    setStep('idle')
+    setErrorMsg(null)
+    setReport(null)
+    setDiagnosticId(null)
+  }
+
+  return (
+    <main className="flex-1 px-6 py-8 max-w-3xl">
+      {/* 페이지 헤더 */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">원고 진단</h2>
+          <p className="text-sm text-gray-500 mt-0.5">
+            원고 파일을 업로드하면 AI가 출판 준비도를 분석합니다
+          </p>
+        </div>
+        {(step === 'done' || step === 'error') && (
+          <button
+            onClick={handleReset}
+            className="text-sm text-gray-500 hover:text-gray-700 underline underline-offset-2"
+          >
+            새 분석
+          </button>
+        )}
+      </div>
+
+      <div className="space-y-6">
+        {/* idle */}
+        {step === 'idle' && (
+          <FileUploader onFile={handleFile} />
+        )}
+
+        {/* uploading */}
+        {step === 'uploading' && (
+          <AnalysisStatus
+            icon="upload"
+            title="파일 업로드 중..."
+            description="잠시만 기다려 주세요."
+          />
+        )}
+
+        {/* analyzing */}
+        {step === 'analyzing' && (
+          <AnalysisStatus
+            icon="spin"
+            title="원고를 분석하고 있습니다"
+            description="AI가 원고를 읽고 있습니다. 최대 1~2분이 소요됩니다."
+          />
+        )}
+
+        {/* error */}
+        {step === 'error' && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center space-y-4">
+            <p className="text-sm font-medium text-red-700">
+              {errorMsg ?? '오류가 발생했습니다.'}
+            </p>
+            <button
+              onClick={handleReset}
+              className="inline-flex items-center px-5 py-2 text-sm font-medium bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              다시 시도
+            </button>
+          </div>
+        )}
+
+        {/* done */}
+        {step === 'done' && report && (
+          <>
+            {diagnosticId && (
+              <p className="text-xs text-gray-400 text-right">
+                진단 ID:{' '}
+                <Link
+                  href={`/dashboard/diagnostics/${diagnosticId}`}
+                  className="underline hover:text-gray-600"
+                >
+                  {diagnosticId.slice(0, 8)}…
+                </Link>
+              </p>
+            )}
+            <DiagnosticReport report={report} isGuest={false} />
+          </>
+        )}
+      </div>
+    </main>
+  )
+}
+
+function AnalysisStatus({
+  icon,
+  title,
+  description,
+}: {
+  icon: 'upload' | 'spin'
+  title: string
+  description: string
+}) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl p-10 flex flex-col items-center gap-4 text-center">
+      {icon === 'spin' ? (
+        <div className="w-12 h-12 rounded-full border-4 border-gray-200 border-t-black animate-spin" />
+      ) : (
+        <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center">
+          <svg className="w-6 h-6 text-gray-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round"
+              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+          </svg>
+        </div>
+      )}
+      <div>
+        <p className="text-base font-semibold text-gray-900">{title}</p>
+        <p className="text-sm text-gray-500 mt-1">{description}</p>
+      </div>
+    </div>
+  )
+}

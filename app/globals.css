@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── 나눔고딕 폰트 (OFL, 상업적 임베딩 허용) ──────────────────────────
+   font-install.sh 실행 후 public/fonts/에 OTF 파일이 존재해야 합니다.
+   파일 없이도 앱은 동작하며 시스템 폰트로 폴백됩니다.           */
+@font-face {
+  font-family: 'Nanum Gothic';
+  src: url('/fonts/NanumGothic.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nanum Gothic';
+  src: url('/fonts/NanumGothicBold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --foreground: #171717;
+  --background: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground: #ededed;
+    --background: #0a0a0a;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: 'Nanum Gothic', 'Apple SD Gothic Neo', 'Malgun Gothic',
+    sans-serif;
+}
+
+/* TipTap 에디터 기본 스타일 */
+.tiptap {
+  outline: none;
+  min-height: 100%;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  color: #adb5bd;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
