@@ -3,16 +3,10 @@
 import { useRef, useState, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 
-const ACCEPTED_TYPES = ['.txt', '.md', '.docx', '.pdf']
-const ACCEPTED_MIME = [
-  'text/plain',
-  'text/markdown',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/pdf',
-  'application/octet-stream',
-]
-const MAX_SIZE_BYTES = 10 * 1024 * 1024  // 10MB
-const MAX_SIZE_LABEL = '10MB'
+// API가 허용하는 확장자만 표시 (route.ts: text/plain, text/markdown, .txt, .md)
+const ACCEPTED_TYPES = ['.txt', '.md']
+const MAX_SIZE_BYTES = 5 * 1024 * 1024  // 5MB — API와 동일
+const MAX_SIZE_LABEL = '5MB'
 
 interface FileUploaderProps {
   onFile: (file: File) => void
@@ -20,35 +14,45 @@ interface FileUploaderProps {
 }
 
 /**
- * 드래그앤드롭 + 클릭 파일 업로더
- * 허용: .txt .md .docx .pdf / 최대 10MB
+ * 드래그앤드롭 + 클릭 파일 업로더 (2단계)
+ * 1단계: 드롭존
+ * 2단계: 선택된 파일명·크기 표시 + "진단 시작" 버튼
  */
 export default function FileUploader({ onFile, disabled }: FileUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   function validate(file: File): string | null {
     if (file.size > MAX_SIZE_BYTES) {
       return `파일 크기는 ${MAX_SIZE_LABEL} 이하여야 합니다. (현재: ${formatBytes(file.size)})`
     }
-    const ext = '.' + file.name.split('.').pop()?.toLowerCase()
-    const validExt = ACCEPTED_TYPES.includes(ext)
-    const validMime = ACCEPTED_MIME.some((m) => file.type.startsWith(m.split('/')[0]))
-    if (!validExt && !validMime) {
+    const ext = '.' + (file.name.split('.').pop()?.toLowerCase() ?? '')
+    if (!ACCEPTED_TYPES.includes(ext)) {
       return `지원하지 않는 형식입니다. (허용: ${ACCEPTED_TYPES.join(', ')})`
     }
     return null
   }
 
-  function handleFile(file: File) {
+  function pickFile(file: File) {
     const err = validate(file)
     if (err) {
       setError(err)
+      setSelectedFile(null)
       return
     }
     setError(null)
-    onFile(file)
+    setSelectedFile(file)
+  }
+
+  function handleConfirm() {
+    if (selectedFile && !disabled) onFile(selectedFile)
+  }
+
+  function handleReselect() {
+    setSelectedFile(null)
+    setError(null)
   }
 
   const onDrop = useCallback(
@@ -57,7 +61,7 @@ export default function FileUploader({ onFile, disabled }: FileUploaderProps) {
       setIsDragging(false)
       if (disabled) return
       const file = e.dataTransfer.files[0]
-      if (file) handleFile(file)
+      if (file) pickFile(file)
     },
     [disabled], // eslint-disable-line react-hooks/exhaustive-deps
   )
@@ -70,11 +74,62 @@ export default function FileUploader({ onFile, disabled }: FileUploaderProps) {
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) handleFile(file)
-    // 같은 파일 재선택 허용
-    e.target.value = ''
+    if (file) pickFile(file)
+    e.target.value = ''  // 같은 파일 재선택 허용
   }
 
+  // ── 2단계: 파일 선택됨 → 미리보기 + 확인 버튼 ──────────────────
+  if (selectedFile) {
+    const ext = selectedFile.name.split('.').pop()?.toUpperCase() ?? 'TXT'
+
+    return (
+      <div className="space-y-3">
+        {/* 파일 정보 카드 */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-4">
+          {/* 확장자 뱃지 */}
+          <div className="w-11 h-11 rounded-xl bg-gray-900 flex items-center justify-center flex-shrink-0">
+            <span className="text-[10px] font-bold text-white tracking-wide">{ext}</span>
+          </div>
+
+          {/* 파일명 + 크기 */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900 truncate">{selectedFile.name}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{formatBytes(selectedFile.size)}</p>
+          </div>
+
+          {/* 다시 선택 */}
+          <button
+            type="button"
+            onClick={handleReselect}
+            disabled={disabled}
+            aria-label="파일 다시 선택"
+            className="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors flex-shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* 진단 시작 버튼 */}
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={disabled}
+          className={cn(
+            'w-full py-3 rounded-xl text-sm font-semibold transition-colors',
+            disabled
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-black text-white hover:bg-gray-800 active:bg-gray-900',
+          )}
+        >
+          진단 시작
+        </button>
+      </div>
+    )
+  }
+
+  // ── 1단계: 드롭존 ────────────────────────────────────────────────
   return (
     <div className="space-y-2">
       <div
@@ -105,17 +160,15 @@ export default function FileUploader({ onFile, disabled }: FileUploaderProps) {
         {isDragging ? (
           <p className="text-sm font-medium text-gray-700">파일을 놓으세요</p>
         ) : (
-          <>
-            <div>
-              <p className="text-sm font-medium text-gray-900">
-                파일을 드래그하거나{' '}
-                <span className="underline underline-offset-2">클릭하여 선택</span>
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                {ACCEPTED_TYPES.join(', ')} · 최대 {MAX_SIZE_LABEL}
-              </p>
-            </div>
-          </>
+          <div>
+            <p className="text-sm font-medium text-gray-900">
+              파일을 드래그하거나{' '}
+              <span className="underline underline-offset-2">클릭하여 선택</span>
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {ACCEPTED_TYPES.join(', ')} · 최대 {MAX_SIZE_LABEL}
+            </p>
+          </div>
         )}
 
         <input

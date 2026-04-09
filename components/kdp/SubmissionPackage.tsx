@@ -7,7 +7,8 @@
  *   [x] 내지 DOCX
  *   [x] 표지 이미지 (업로드 or Canva 딥링크)
  *   [x] 영문 EPUB
- *   [ ] 메타데이터 XLSX
+ *   [x] 메타데이터
+ *   [x] AI 콘텐츠 공개 선택
  * "제출 패키지 ZIP 다운로드" → POST /api/kdp/package
  */
 
@@ -25,10 +26,12 @@ import {
   Table2,
   AlertTriangle,
   Package,
+  ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase'
 import type { KdpMetadata } from './KdpMetadataForm'
+import KdpAiDisclosure, { type AiDisclosureLevel } from '@/components/kdp-disclosure/KdpAiDisclosure'
 
 interface SubmissionPackageProps {
   projectId: string
@@ -54,6 +57,7 @@ export default function SubmissionPackage({
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
   const [missingFiles, setMissingFiles] = useState<string[]>([])
   const [genError, setGenError] = useState<string | null>(null)
+  const [aiDisclosure, setAiDisclosure] = useState<AiDisclosureLevel | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const hasMetadata = metadata !== null && metadata.title.trim().length > 0
@@ -87,6 +91,13 @@ export default function SubmissionPackage({
       description: '메타데이터 탭에서 정보 입력 및 저장',
       done: hasMetadata,
       icon: Table2,
+    },
+    {
+      id: 'ai_disclosure',
+      label: 'AI 콘텐츠 공개',
+      description: 'KDP 정책에 따라 AI 활용 여부를 반드시 선택하세요.',
+      done: aiDisclosure !== null,
+      icon: ShieldCheck,
     },
   ]
 
@@ -138,6 +149,7 @@ export default function SubmissionPackage({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId,
+          aiDisclosure,
           metadata: metadata
             ? {
                 title: metadata.title,
@@ -275,6 +287,16 @@ export default function SubmissionPackage({
                         const file = e.target.files?.[0]
                         if (file) handleCoverUpload(file)
                       }}
+                    />
+                  </div>
+                )}
+
+                {/* AI 공개 선택 액션 */}
+                {item.id === 'ai_disclosure' && (
+                  <div className="mt-3">
+                    <KdpAiDisclosure
+                      value={aiDisclosure}
+                      onChange={setAiDisclosure}
                     />
                   </div>
                 )}

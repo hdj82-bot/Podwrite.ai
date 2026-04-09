@@ -33,6 +33,8 @@ export interface KdpMetadata {
 interface KdpMetadataFormProps {
   projectId: string
   initialTitle?: string
+  /** 프로젝트 장르 — BisacSelector 추천용 */
+  genre?: string | null
   onSave: (metadata: KdpMetadata) => void
   saving?: boolean
 }
@@ -51,6 +53,7 @@ const DEFAULT_METADATA: KdpMetadata = {
 export default function KdpMetadataForm({
   projectId,
   initialTitle,
+  genre,
   onSave,
   saving,
 }: KdpMetadataFormProps) {
@@ -245,6 +248,7 @@ export default function KdpMetadataForm({
           value={meta.bisacCategories}
           onChange={(cats) => update('bisacCategories', cats)}
           max={2}
+          genre={genre}
         />
         {errors.bisacCategories && (
           <p className="mt-1 text-xs text-red-500">{String(errors.bisacCategories)}</p>

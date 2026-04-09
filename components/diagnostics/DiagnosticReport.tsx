@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import ScoreGauge from './ScoreGauge'
 import PlatformFitCard from './PlatformFitCard'
 import { cn } from '@/lib/utils'
@@ -9,9 +10,12 @@ import type { DiagnosticReport as ReportType } from '@/types'
 
 interface DiagnosticReportProps {
   report: ReportType
-  /** 비회원일 때 true — 하단 가입 CTA 표시 */
+  /** 비회원일 때 true — 하단 클레임 CTA 표시 */
   isGuest?: boolean
-  /** 가입 후 claim 처리용 콜백 */
+  /**
+   * "이 원고로 프로젝트 시작하기" 클릭 시 부모가 호출할 콜백
+   * (localStorage에 pod_claim_pending 저장 등 사전 처리용)
+   */
   onClaim?: () => void
 }
 
@@ -24,10 +28,22 @@ const SECTION_META: Record<Section, { label: string; icon: string; color: string
 }
 
 export default function DiagnosticReport({ report, isGuest, onClaim }: DiagnosticReportProps) {
+  const router = useRouter()
   const [openSection, setOpenSection] = useState<Section | null>('strengths')
 
   function toggle(section: Section) {
     setOpenSection((prev) => (prev === section ? null : section))
+  }
+
+  /**
+   * 비회원 CTA 클릭 처리
+   * 1. 부모 onClaim() → localStorage에 pod_claim_pending 저장
+   * 2. /login?next=/dashboard/diagnostics 로 이동
+   *    → 로그인 후 대시보드 진단 페이지가 claim API 호출 후 /dashboard/new로 이동
+   */
+  function handleStartProject() {
+    onClaim?.()
+    router.push('/login?next=/dashboard/diagnostics')
   }
 
   return (
@@ -108,6 +124,7 @@ export default function DiagnosticReport({ report, isGuest, onClaim }: Diagnosti
 
       {/* ── CTA ── */}
       {!isGuest ? (
+        /* 회원: 새 프로젝트 시작 */
         <div className="flex justify-end">
           <Link
             href="/dashboard/new"
@@ -120,25 +137,34 @@ export default function DiagnosticReport({ report, isGuest, onClaim }: Diagnosti
           </Link>
         </div>
       ) : (
-        /* 비회원 CTA */
-        <div className="bg-gray-900 text-white rounded-2xl p-6 text-center space-y-3">
-          <p className="text-base font-semibold">결과를 저장하고 집필을 시작하세요</p>
-          <p className="text-sm text-gray-400">
-            회원가입 후 진단 결과가 자동으로 계정에 저장됩니다
-          </p>
+        /* 비회원: 클레임 유도 */
+        <div className="bg-gray-900 text-white rounded-2xl p-6 space-y-3">
+          <div className="text-center space-y-1">
+            <p className="text-base font-semibold">이 원고로 프로젝트를 시작해보세요</p>
+            <p className="text-sm text-gray-400">
+              로그인 후 진단 결과가 자동으로 계정에 저장되고 집필을 바로 시작할 수 있습니다
+            </p>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-1">
+            {/* 메인 CTA — 로그인 후 claim 처리 */}
+            <button
+              type="button"
+              onClick={handleStartProject}
+              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-white text-gray-900 text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              이 원고로 프로젝트 시작하기
+            </button>
+
+            {/* 회원가입 링크 */}
             <Link
               href="/signup"
-              onClick={onClaim}
-              className="inline-flex items-center justify-center px-6 py-2.5 bg-white text-gray-900 text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              무료로 가입하기
-            </Link>
-            <Link
-              href="/login"
               className="inline-flex items-center justify-center px-6 py-2.5 border border-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
             >
-              이미 계정이 있어요
+              무료 회원가입
             </Link>
           </div>
         </div>

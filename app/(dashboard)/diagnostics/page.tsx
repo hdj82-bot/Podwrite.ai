@@ -3,12 +3,14 @@
 /**
  * /dashboard/diagnostics — 회원 원고 진단 페이지
  *
- * - 새 원고 업로드 (FileUploader)
- * - 과거 진단 이력 목록 (Supabase 직접 쿼리는 서버 컴포넌트에서,
- *   업로드/폴링은 클라이언트 컴포넌트에서)
+ * - 마운트 시: pod_claim_pending (localStorage) 확인
+ *   → 비회원 진단 결과를 로그인 후 claim 처리 + /dashboard/new 이동
+ * - 새 원고 업로드 (FileUploader → 2단계 확인 UI)
+ * - 분석 완료 시 DiagnosticReport 표시
  */
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import FileUploader from '@/components/diagnostics/FileUploader'
 import DiagnosticReport from '@/components/diagnostics/DiagnosticReport'
@@ -16,18 +18,55 @@ import type { Diagnostic, DiagnosticReport as ReportType } from '@/types'
 
 type Step = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error'
 
-const POLL_INTERVAL_MS = 2000
-const POLL_MAX_ATTEMPTS = 90
-
-export const metadata = { title: '원고 진단' }
+const POLL_INTERVAL_MS = 3000
+const POLL_MAX_ATTEMPTS = 60  // 최대 3분
+const CLAIM_PENDING_KEY = 'pod_claim_pending'
 
 export default function DashboardDiagnosticsPage() {
+  const router = useRouter()
   const [step, setStep] = useState<Step>('idle')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [report, setReport] = useState<ReportType | null>(null)
   const [diagnosticId, setDiagnosticId] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollCount = useRef(0)
+
+  // ── 비회원 → 회원 클레임 처리 ─────────────────────────────────
+  // /diagnostics에서 "이 원고로 프로젝트 시작하기" 클릭 후 로그인하면
+  // /login?next=/dashboard/diagnostics → 여기 도착, pod_claim_pending을 처리
+  useEffect(() => {
+    const handlePendingClaim = async () => {
+      const raw = localStorage.getItem(CLAIM_PENDING_KEY)
+      if (!raw) return
+
+      let id: string, token: string
+      try {
+        const parsed = JSON.parse(raw) as { id: string; token: string }
+        id = parsed.id
+        token = parsed.token
+      } catch {
+        localStorage.removeItem(CLAIM_PENDING_KEY)
+        return
+      }
+
+      try {
+        const res = await fetch(`/api/diagnostics/${id}/claim`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_token: token }),
+        })
+        localStorage.removeItem(CLAIM_PENDING_KEY)
+        if (res.ok) {
+          // claim 성공 → 새 프로젝트 생성 페이지로
+          router.push('/dashboard/new')
+        }
+      } catch {
+        localStorage.removeItem(CLAIM_PENDING_KEY)
+      }
+    }
+
+    handlePendingClaim()
+  }, [router])
 
   function stopPolling() {
     if (pollRef.current) {
@@ -83,7 +122,6 @@ export default function DashboardDiagnosticsPage() {
     setStep('uploading')
     setErrorMsg(null)
 
-    // 회원은 session_token = 임시 UUID (claim은 서버에서 user_id로 바로 연결)
     const sessionToken = crypto.randomUUID()
 
     const formData = new FormData()

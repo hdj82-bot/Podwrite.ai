@@ -13,7 +13,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Globe, FileText, Package, ChevronLeft, Lock, Loader2, AlertCircle } from 'lucide-react'
+import { Globe, FileText, Package, ChevronLeft, Lock, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase'
 import KdpMetadataForm, { type KdpMetadata } from '@/components/kdp/KdpMetadataForm'
@@ -42,6 +42,12 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
   { id: 'translation', label: '번역', icon: Globe },
   { id: 'package', label: '제출 패키지', icon: Package },
 ]
+
+function tabDone(tab: Tab, metadata: KdpMetadata | null, hasEpub: boolean): boolean {
+  if (tab === 'metadata') return metadata !== null && metadata.title.trim().length > 0
+  if (tab === 'translation') return hasEpub
+  return false
+}
 
 export default function KdpPage() {
   const params = useParams()
@@ -239,6 +245,7 @@ export default function KdpPage() {
             {TABS.map((tab, i) => {
               const Icon = tab.icon
               const isActive = activeTab === tab.id
+              const isDone = tabDone(tab.id, metadata, hasEpub)
               return (
                 <button
                   key={tab.id}
@@ -250,14 +257,18 @@ export default function KdpPage() {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
                   )}
                 >
-                  <span
-                    className={cn(
-                      'flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold shrink-0',
-                      isActive ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-600',
-                    )}
-                  >
-                    {i + 1}
-                  </span>
+                  {isDone && !isActive ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+                  ) : (
+                    <span
+                      className={cn(
+                        'flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold shrink-0',
+                        isActive ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-600',
+                      )}
+                    >
+                      {i + 1}
+                    </span>
+                  )}
                   <Icon className="h-4 w-4" />
                   {tab.label}
                 </button>
@@ -299,6 +310,7 @@ export default function KdpPage() {
             <KdpMetadataForm
               projectId={projectId}
               initialTitle={metadata?.title}
+              genre={project?.genre}
               onSave={handleSaveMeta}
               saving={savingMeta}
             />

@@ -112,6 +112,21 @@ export default function ProjectCard({ project, onDeleted }: ProjectCardProps) {
             {formatRelativeTime(project.updated_at)}
           </p>
         </Link>
+
+        {/* 챕터 관리 링크 */}
+        <div className="border-t border-gray-100 pt-3 -mx-5 px-5">
+          <Link
+            href={`/dashboard/chapters/${project.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round"
+                d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+            </svg>
+            챕터 관리
+          </Link>
+        </div>
       </div>
 
       <ConfirmModal

@@ -4,44 +4,94 @@
  * /diagnostics — 비회원 공개 원고 진단 페이지
  *
  * 단계:
- *  1. 파일 선택 (FileUploader)
- *  2. POST /api/diagnostics — session_token 발급 후 업로드
- *  3. 폴링 GET /api/diagnostics?id=xxx (x-session-token 헤더)
+ *  1. FileUploader → 파일 선택 + "진단 시작" 버튼
+ *  2. POST /api/diagnostics — session_token + file 업로드
+ *  3. GET /api/diagnostics?id=xxx (x-session-token 헤더) 폴링 (3초)
  *  4. status=completed → DiagnosticReport 표시
- *  5. 비회원: 결과 하단 가입 CTA + 가입 완료 후 자동 claim
+ *  5. 비회원 CTA:
+ *       - "이 원고로 프로젝트 시작하기" 클릭
+ *       → pod_claim_pending 저장 → /login?next=/dashboard/diagnostics
+ *       → 로그인 후 대시보드 진단 페이지에서 claim 처리
+ *
+ * 페이지 재방문 시 로그인 상태이면 pending claim 자동 처리 후 /dashboard/new로 이동
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import FileUploader from '@/components/diagnostics/FileUploader'
 import DiagnosticReport from '@/components/diagnostics/DiagnosticReport'
+import { createClient } from '@/lib/supabase'
 import type { Diagnostic, DiagnosticReport as ReportType } from '@/types'
 
 type Step = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error'
 
-const POLL_INTERVAL_MS = 2000
-const POLL_MAX_ATTEMPTS = 90  // 최대 3분
+const POLL_INTERVAL_MS = 3000
+const POLL_MAX_ATTEMPTS = 60  // 최대 3분
 
 const SESSION_TOKEN_KEY = 'pod_diag_session'
 const DIAGNOSTIC_ID_KEY = 'pod_diag_id'
+const CLAIM_PENDING_KEY = 'pod_claim_pending'
 
 export default function PublicDiagnosticsPage() {
+  const router = useRouter()
   const [step, setStep] = useState<Step>('idle')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [report, setReport] = useState<ReportType | null>(null)
   const [diagnosticId, setDiagnosticId] = useState<string | null>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollCount = useRef(0)
 
-  // 이전 세션 결과 복원
+  // ── 마운트 시: 로그인 상태이면 pending claim 처리, 아니면 이전 세션 복원 ──
   useEffect(() => {
-    const savedId = localStorage.getItem(DIAGNOSTIC_ID_KEY)
-    const savedToken = localStorage.getItem(SESSION_TOKEN_KEY)
-    if (savedId && savedToken) {
-      setDiagnosticId(savedId)
-      startPolling(savedId, savedToken)
+    let cancelled = false
+
+    const init = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (cancelled) return
+
+      setIsLoggedIn(!!user)
+
+      const savedId = localStorage.getItem(DIAGNOSTIC_ID_KEY)
+      const savedToken = localStorage.getItem(SESSION_TOKEN_KEY)
+
+      if (user && savedId && savedToken) {
+        // 로그인 상태 + 이전 세션 → claim 처리 후 /dashboard/new로
+        try {
+          const res = await fetch(`/api/diagnostics/${savedId}/claim`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_token: savedToken }),
+          })
+          if (!cancelled) {
+            localStorage.removeItem(DIAGNOSTIC_ID_KEY)
+            localStorage.removeItem(SESSION_TOKEN_KEY)
+            localStorage.removeItem(CLAIM_PENDING_KEY)
+            if (res.ok) {
+              router.push('/dashboard/new')
+              return
+            }
+          }
+        } catch {
+          // claim 실패 → 결과 복원으로 fallback
+        }
+      }
+
+      // 비로그인이거나 claim 실패 → 이전 세션 결과 복원
+      if (!cancelled && savedId && savedToken) {
+        setDiagnosticId(savedId)
+        startPolling(savedId, savedToken)
+      }
     }
-    return () => stopPolling()
+
+    init()
+    return () => {
+      cancelled = true
+      stopPolling()
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function stopPolling() {
@@ -92,7 +142,7 @@ export default function PublicDiagnosticsPage() {
         }
         // pending/processing → 계속 폴링
       } catch {
-        // 네트워크 오류는 계속 시도
+        // 네트워크 오류 → 재시도
       }
     }, POLL_INTERVAL_MS)
   }, [])
@@ -101,7 +151,6 @@ export default function PublicDiagnosticsPage() {
     setStep('uploading')
     setErrorMsg(null)
 
-    // session_token 생성 (기존 재사용 또는 신규)
     let sessionToken = localStorage.getItem(SESSION_TOKEN_KEY)
     if (!sessionToken) {
       sessionToken = generateId()
@@ -141,13 +190,19 @@ export default function PublicDiagnosticsPage() {
     setDiagnosticId(null)
   }
 
-  // 가입 후 claim (로그인 상태에서 돌아왔을 때 처리)
-  // claim은 /api/diagnostics/[id]/claim 으로 처리
-  // 실제 실행은 로그인/가입 흐름이 완료된 후 대시보드에서 처리하므로
-  // 여기서는 단순히 /signup?claim=DIAGNOSTIC_ID 로 연결
-  const signupHref = diagnosticId
-    ? `/signup?claim=${diagnosticId}`
-    : '/signup'
+  /**
+   * 비회원 CTA 클릭 시 DiagnosticReport가 호출
+   * → pod_claim_pending 저장 (DiagnosticReport 내부에서 /login으로 이동)
+   */
+  function handleClaim() {
+    const token = localStorage.getItem(SESSION_TOKEN_KEY)
+    if (diagnosticId && token) {
+      localStorage.setItem(
+        CLAIM_PENDING_KEY,
+        JSON.stringify({ id: diagnosticId, token }),
+      )
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -232,14 +287,46 @@ export default function PublicDiagnosticsPage() {
             <DiagnosticReport
               report={report}
               isGuest
-              onClaim={() => {
-                // signup 페이지에서 claim 처리
-              }}
+              onClaim={handleClaim}
             />
-            {/* 비회원 전용 하단 CTA — DiagnosticReport 내부에도 있지만 중복 없애고 페이지 레벨에서 처리 */}
           </>
         )}
       </main>
+
+      {/* ── Sticky CTA 배너 ──────────────────────────────────── */}
+      {step === 'done' && report && isLoggedIn !== null && (
+        <div className="sticky bottom-0 z-10 border-t border-gray-200 bg-white/95 backdrop-blur-sm px-6 py-3 flex items-center justify-between gap-4">
+          {isLoggedIn ? (
+            <>
+              <p className="text-sm text-gray-600">대시보드에서 전체 진단 기록을 확인하세요.</p>
+              <Link
+                href="/dashboard/diagnostics"
+                className="flex-shrink-0 px-4 py-2 bg-black text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                대시보드에서 보기
+              </Link>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-gray-600">진단 기록을 저장하려면 회원가입하세요.</p>
+              <button
+                onClick={() => {
+                  handleClaim()
+                  window.location.href = '/signup?next=/dashboard/diagnostics'
+                }}
+                className="flex-shrink-0 px-4 py-2 bg-black text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                무료 회원가입
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Footer ──────────────────────────────────────────── */}
+      <footer className="border-t border-gray-100 px-6 py-4 text-center">
+        <p className="text-xs text-gray-400">© 2026 Podwrite.ai</p>
+      </footer>
     </div>
   )
 }
@@ -279,6 +366,5 @@ function generateId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID()
   }
-  // fallback
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }

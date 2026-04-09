@@ -82,8 +82,7 @@ export default function ScoreGauge({ score, size = 120, label = '종합 점수' 
 }
 
 function scoreColor(score: number): string {
-  if (score >= 80) return '#16a34a'   // green-600
-  if (score >= 60) return '#2563eb'   // blue-600
-  if (score >= 40) return '#d97706'   // amber-600
-  return '#dc2626'                     // red-600
+  if (score >= 71) return '#16a34a'   // green-600  — 71~100
+  if (score >= 41) return '#d97706'   // amber-600  — 41~70
+  return '#dc2626'                     // red-600    — 0~40
 }
