@@ -14,8 +14,21 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [forgotState, setForgotState] = useState<'idle' | 'sending' | 'sent'>('idle')
 
   const supabase = createClient()
+
+  async function handleForgotPassword() {
+    if (!email) {
+      setError('비밀번호 재설정을 위해 이메일을 먼저 입력해주세요.')
+      return
+    }
+    setForgotState('sending')
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${location.origin}/auth/callback?next=/dashboard/settings`,
+    })
+    setForgotState('sent')
+  }
 
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -81,9 +94,23 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium mb-1">
-              비밀번호
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label htmlFor="password" className="text-sm font-medium">
+                비밀번호
+              </label>
+              {forgotState === 'sent' ? (
+                <span className="text-xs text-green-600">재설정 이메일을 발송했습니다</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={forgotState === 'sending'}
+                  className="text-xs text-gray-500 hover:text-black disabled:opacity-50"
+                >
+                  비밀번호를 잊으셨나요?
+                </button>
+              )}
+            </div>
             <input
               id="password"
               type="password"

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import ProjectGrid from '@/components/dashboard/ProjectGrid'
 import EmptyState from '@/components/dashboard/EmptyState'
 import NewProjectModal from '@/components/dashboard/NewProjectModal'
+import DashboardStats from '@/components/dashboard/DashboardStats'
 import type { Plan, Project } from '@/types'
 
 interface DashboardClientProps {
@@ -39,6 +40,9 @@ export default function DashboardClient({
           새 원고
         </button>
       </div>
+
+      {/* 집필 통계: 스트릭 + 30일 그래프 */}
+      <DashboardStats />
 
       {/* 프로젝트 목록 */}
       {projects.length === 0 ? (

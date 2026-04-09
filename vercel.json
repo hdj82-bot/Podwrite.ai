@@ -2,6 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "functions": {
+    "app/api/diagnostics/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/chat/ai/route.ts": {
+      "maxDuration": 60
+    },
     "app/api/generate-docx/route.ts": {
       "maxDuration": 60,
       "memory": 1024

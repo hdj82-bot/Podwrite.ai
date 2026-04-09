@@ -16,6 +16,7 @@ import { Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase'
 import PricingCard from '@/components/payment/PricingCard'
+import BillingForm from '@/components/payment/BillingForm'
 import type { Plan } from '@/types'
 
 type BillingType = 'monthly' | 'annual'
@@ -57,7 +58,7 @@ export default function PricingPage() {
   const router = useRouter()
   const [billingType, setBillingType] = useState<BillingType>('monthly')
   const [user, setUser] = useState<UserState>({ id: '', plan: 'free', loaded: false })
-  const [selectedPlan, setSelectedPlan] = useLocalState<'basic' | 'pro' | null>(null)
+  const [selectedPlan, setSelectedPlan] = useState<'basic' | 'pro' | null>(null)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
 
   useEffect(() => {
@@ -94,8 +95,8 @@ export default function PricingPage() {
       return
     }
     if (!user.id) {
-      // 비로그인: 회원가입으로 이동
-      router.push(`/signup?redirect=/pricing&plan=${plan}`)
+      // 비로그인: 로그인 후 pricing으로 복귀
+      router.push('/login?next=/pricing')
       return
     }
     setSelectedPlan(plan as 'basic' | 'pro')

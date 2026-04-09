@@ -4,8 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const TABS = [
-  { href: '/dashboard/settings', label: '계정', exact: true },
-  { href: '/dashboard/settings/billing', label: '구독 / 결제' },
+  { href: '/dashboard/settings/profile', label: '프로필' },
+  { href: '/dashboard/settings/billing', label: '구독·결제' },
 ]
 
 export default function SettingsTabs() {
@@ -14,9 +14,7 @@ export default function SettingsTabs() {
   return (
     <nav className="flex gap-1 mb-6 border-b border-gray-200">
       {TABS.map((tab) => {
-        const isActive = tab.exact
-          ? pathname === tab.href
-          : pathname.startsWith(tab.href)
+        const isActive = pathname.startsWith(tab.href)
 
         return (
           <Link

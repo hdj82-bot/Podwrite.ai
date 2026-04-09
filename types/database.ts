@@ -224,9 +224,29 @@ export type Database = {
           updated_at?: string
         }
       }
+      writing_logs: {
+        Row: {
+          user_id: string
+          log_date: string
+          words: number
+        }
+        Insert: {
+          user_id: string
+          log_date: string
+          words?: number
+        }
+        Update: {
+          words?: number
+        }
+      }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      increment_writing_log: {
+        Args: { p_user_id: string; p_date: string; p_words: number }
+        Returns: void
+      }
+    }
     Enums: {
       plan_type: 'free' | 'basic' | 'pro'
       platform_type: 'bookk' | 'kyobo' | 'kdp'

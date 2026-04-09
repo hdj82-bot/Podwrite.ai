@@ -10,7 +10,7 @@
  */
 import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
-import { createServerClient, createServiceClient } from '@/lib/supabase-server'
+import { createServerClient, createServiceClient, upsertWritingLog } from '@/lib/supabase-server'
 import { getVersionsToEvict } from '@/lib/plan-guard'
 import type { Plan, TipTapDocument, VersionTrigger } from '@/types'
 
@@ -143,6 +143,12 @@ export async function PATCH(
       // fire-and-forget: 버전 저장 실패가 자동저장을 방해하지 않도록
       saveVersion(chapter.project_id, id, contentToSave, trigger).catch(() => {})
     }
+  }
+
+  // ── 집필 로그 누적 (스트릭 + 30일 그래프용) ──────────────────
+  // word_count 증가분만 기록 (삭제는 추적 안 함)
+  if (word_count !== undefined && word_count > chapter.word_count) {
+    upsertWritingLog(user.id, word_count - chapter.word_count).catch(() => {})
   }
 
   return NextResponse.json({ data: updated })
