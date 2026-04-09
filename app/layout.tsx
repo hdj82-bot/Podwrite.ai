@@ -10,20 +10,27 @@ validateEnv()
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://podwrite.ai'),
   title: {
     default: 'Podwrite.ai — AI 출판 지원 툴',
     template: '%s | Podwrite.ai',
   },
   description:
     'AI와 함께 기획부터 출판 제출 파일까지. 부크크·교보·Amazon KDP 규격 자동 보장.',
-  keywords: ['POD', '출판', '자가출판', 'AI', '글쓰기', '부크크', '교보', 'KDP'],
+  keywords: ['독립출판', 'POD', '출판', '자가출판', 'AI 글쓰기', '글쓰기', '전자책', '부크크', '교보', 'KDP'],
+  icons: { icon: '/favicon.ico' },
   openGraph: {
-    title: 'Podwrite.ai',
-    description: 'AI 기반 POD 출판 원스톱 플랫폼',
+    title: 'Podwrite.ai — AI 출판 지원 툴',
+    description: 'AI와 함께 기획부터 출판 제출 파일까지. 부크크·교보·Amazon KDP 규격 자동 보장.',
     url: 'https://podwrite.ai',
     siteName: 'Podwrite.ai',
     locale: 'ko_KR',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Podwrite.ai — AI 출판 지원 툴',
+    description: 'AI와 함께 기획부터 출판 제출 파일까지. 부크크·교보·Amazon KDP 규격 자동 보장.',
   },
 }
 

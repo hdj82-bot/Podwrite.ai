@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import RoyaltyCalculator from '@/components/RoyaltyCalculator'
+import BetaSignupBanner from '@/components/BetaSignupBanner'
 import {
   Sparkles,
   FileText,
@@ -277,6 +279,9 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* ── 로열티 계산기 ────────────────────────────────── */}
+        <RoyaltyCalculator />
+
         {/* ── 비로그인 진단 CTA 배너 ──────────────────────── */}
         <section className="py-16 px-6 bg-gradient-to-br from-purple-600 to-purple-800 text-white">
           <div className="max-w-2xl mx-auto text-center">
@@ -300,6 +305,9 @@ export default function HomePage() {
             </Link>
           </div>
         </section>
+
+        {/* ── 베타 테스터 소셜 프루프 배너 ───────────────────── */}
+        <BetaSignupBanner />
 
         {/* ── 신뢰 지표 ────────────────────────────────────── */}
         <section className="py-12 px-6 bg-gray-50 border-t border-gray-100">

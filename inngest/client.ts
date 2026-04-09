@@ -50,4 +50,13 @@ export type PodwriteEvents = {
   'billing/cycle.trigger': {
     data: Record<string, never>
   }
+  // 원고 진단 비동기 분석
+  'diagnostic/analyze': {
+    data: {
+      diagnosticId: string
+      textContent: string
+      wordCount: number
+      fileName: string
+    }
+  }
 }

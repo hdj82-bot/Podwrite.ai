@@ -45,8 +45,13 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // 보호된 라우트 — 비로그인 시 /login으로
+  // (dashboard) 그룹 레이아웃이 2차 검증하지만, 미들웨어에서 먼저 차단해 서버 컴포넌트 실행 비용 절감
   const isProtected =
-    pathname.startsWith('/dashboard') || pathname.startsWith('/editor')
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/editor') ||
+    pathname.startsWith('/settings') ||
+    pathname.startsWith('/selling') ||
+    pathname.startsWith('/kdp')
 
   if (isProtected && !user) {
     const loginUrl = request.nextUrl.clone()

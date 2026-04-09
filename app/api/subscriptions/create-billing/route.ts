@@ -22,6 +22,7 @@ import { z } from 'zod'
 import { getCurrentUserWithProfile, createServiceClient } from '@/lib/supabase-server'
 import { confirmBillingAuth, TossPaymentsError } from '@/lib/toss-payments'
 import { PLAN_PRICES } from '@/lib/platform-specs'
+import { sendBillingSuccessEmail } from '@/lib/email'
 
 const schema = z.object({
   authKey: z.string().min(1),
@@ -31,7 +32,7 @@ const schema = z.object({
 })
 
 export async function POST(req: Request) {
-  const { authUser } = await getCurrentUserWithProfile()
+  const { authUser, profile } = await getCurrentUserWithProfile()
   if (!authUser) {
     return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
   }
@@ -120,6 +121,15 @@ export async function POST(req: Request) {
       { error: '플랜 업데이트 중 오류가 발생했습니다.' },
       { status: 500 },
     )
+  }
+
+  // 결제 성공 이메일 — fire-and-forget, 실패해도 응답에 영향 없음
+  if (authUser.email) {
+    const name =
+      (profile as { name?: string } | null)?.name ??
+      (authUser.user_metadata?.name as string | undefined) ??
+      authUser.email.split('@')[0]
+    sendBillingSuccessEmail(authUser.email, name, body.plan, amount).catch(() => {})
   }
 
   return NextResponse.json(

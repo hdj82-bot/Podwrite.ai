@@ -17,7 +17,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase-server'
 import { verifyWebhookSignature, type TossWebhookPayload } from '@/lib/toss-payments'
-import { Resend } from 'resend'
+import { sendSubscriptionCancelledEmail } from '@/lib/email'
 
 export async function POST(req: NextRequest) {
   // ── 서명 검증 ──────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
               .eq('id', sub.user_id),
           ])
 
-          await sendCancellationEmail(sub.user_id, sub.plan)
+          await sendCancellationEmailForUser(sub.user_id, sub.plan)
           console.log(`[webhook] 빌링키 취소 처리 완료: ${billingKey}`)
         }
       }
@@ -111,30 +111,12 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ received: true })
 }
 
-async function sendCancellationEmail(userId: string, plan: string): Promise<void> {
-  const resendKey = process.env.SECRET_RESEND_API_KEY
-  if (!resendKey) return
+async function sendCancellationEmailForUser(userId: string, plan: string): Promise<void> {
+  if (!process.env.SECRET_RESEND_API_KEY) return
 
   const supabase = createServiceClient()
   const { data: user } = await supabase.from('users').select('email').eq('id', userId).single()
   if (!user?.email) return
 
-  const resend = new Resend(resendKey)
-
-  await resend.emails.send({
-    from: 'Podwrite.ai <noreply@podwrite.ai>',
-    to: user.email,
-    subject: '[Podwrite.ai] 구독이 취소되었습니다',
-    html: `
-<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-  <h2>구독 취소 안내</h2>
-  <p>${plan.toUpperCase()} 플랜 구독이 취소되었습니다.</p>
-  <p>원고, 챕터, 다운로드 기능은 30일간 유지됩니다.</p>
-  <p>재구독하시면 모든 기능이 즉시 복원됩니다.</p>
-  <a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://podwrite.ai'}/settings/billing"
-     style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">
-    재구독하기
-  </a>
-</div>`,
-  })
+  await sendSubscriptionCancelledEmail(user.email, plan)
 }

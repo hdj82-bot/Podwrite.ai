@@ -189,6 +189,19 @@ export type Database = {
           status?: 'pending' | 'processing' | 'completed' | 'failed'
         }
       }
+      waitlist: {
+        Row: {
+          id: string
+          email: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          email: string
+          created_at?: string
+        }
+        Update: never
+      }
       subscriptions: {
         Row: {
           id: string

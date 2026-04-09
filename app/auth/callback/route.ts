@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
+import { createServiceClient } from '@/lib/supabase-server'
+import { sendWelcomeEmail } from '@/lib/email'
 
 /**
  * OAuth / 이메일 인증 콜백 처리
@@ -31,9 +33,37 @@ export async function GET(request: NextRequest) {
       },
     )
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
+      const user = data?.user
+      const isRecovery = next === '/reset-password'
+
+      // 신규 가입 환영 이메일 — recovery(비밀번호 재설정) 흐름에선 건너뜀
+      if (!isRecovery && user?.email) {
+        try {
+          const serviceClient = createServiceClient()
+          const { data: profile } = await serviceClient
+            .from('users')
+            .select('created_at, name')
+            .eq('id', user.id)
+            .single()
+
+          if (profile) {
+            const ageMs = Date.now() - new Date(profile.created_at).getTime()
+            if (ageMs < 30_000) {
+              const name =
+                profile.name ??
+                (user.user_metadata?.name as string | undefined) ??
+                user.email.split('@')[0]
+              sendWelcomeEmail(user.email, name).catch(() => {})
+            }
+          }
+        } catch {
+          // 신규 가입 판단 실패는 무시
+        }
+      }
+
       return NextResponse.redirect(`${origin}${next}`)
     }
   }

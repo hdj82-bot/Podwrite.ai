@@ -34,6 +34,20 @@ export const spellcheckRateLimit = new Ratelimit({
   prefix: 'rl:spellcheck',
 })
 
+/** 베타 대기자 등록: IP당 시간당 5회 */
+export const waitlistRateLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(5, '1 h'),
+  prefix: 'rl:waitlist',
+})
+
+/** 원고 진단: IP당 시간당 3회 (Claude API 비용 보호) */
+export const diagnosticsRateLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(3, '1 h'),
+  prefix: 'rl:diagnostics',
+})
+
 // ── 플랜별 일일 토큰 한도 ────────────────────────────────────────
 
 export const DAILY_TOKEN_LIMITS: Record<Plan, number> = {

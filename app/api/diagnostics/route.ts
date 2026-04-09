@@ -20,10 +20,10 @@
  * 응답 (GET):
  *   { data: { id, status, report } }
  */
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, createServiceClient } from '@/lib/supabase-server'
-import { callClaude, DIAGNOSTIC_SYSTEM_PROMPT } from '@/lib/claude'
-import type { DiagnosticReport } from '@/types'
+import { diagnosticsRateLimit } from '@/lib/rate-limit'
+import { inngest } from '@/inngest/client'
 
 // Supabase Storage 버킷명
 const STORAGE_BUCKET = 'diagnostics'
@@ -34,7 +34,17 @@ const ALLOWED_TYPES = ['text/plain', 'text/markdown', 'application/octet-stream'
 
 // ── POST: 원고 업로드 + 진단 ──────────────────────────────────────
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // ── Rate Limiting (IP 기반, 시간당 3회) ──────────────────────────
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'anon'
+  const { success } = await diagnosticsRateLimit.limit(ip)
+  if (!success) {
+    return NextResponse.json(
+      { error: '잠시 후 다시 시도해 주세요. (시간당 3회 제한)' },
+      { status: 429 },
+    )
+  }
+
   // 비회원도 허용 — authUser가 없으면 session_token만 사용
   const authUser = await getCurrentUser()
 
@@ -110,66 +120,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: '진단 레코드 생성 중 오류가 발생했습니다.' }, { status: 500 })
   }
 
-  // ── 4. Claude 분석 (동기 — Vercel 60초 제한 유의) ────────────
-  // 원고가 긴 경우 앞 8,000자만 분석 (컨텍스트 절약)
-  const analysisText = textContent.slice(0, 8_000)
+  // ── 4. Inngest 비동기 분석 이벤트 전송 ──────────────────────────
+  // Claude 분석은 Inngest 백그라운드 잡(analyze-diagnostic)에서 처리
+  // → POST는 즉시 반환, 클라이언트는 GET 폴링으로 완료 여부 확인
   const wordCount = countKoreanWords(textContent)
 
-  const userPrompt = `다음 원고를 분석해 주세요.
-
-[원고 정보]
-- 파일명: ${file.name}
-- 총 글자 수: ${textContent.length.toLocaleString()}자
-- 단어 수: ${wordCount.toLocaleString()}개
-
-[원고 내용 (최대 8,000자)]
-${analysisText}
-
-위 원고를 분석하여 지정된 JSON 형식으로만 응답하세요.`
-
-  let report: DiagnosticReport | null = null
-
-  try {
-    const rawResponse = await callClaude(userPrompt, DIAGNOSTIC_SYSTEM_PROMPT, 2048)
-    const parsed = JSON.parse(extractJson(rawResponse))
-
-    report = {
-      strengths: parsed.strengths ?? [],
-      weaknesses: parsed.weaknesses ?? [],
-      suggestions: parsed.suggestions ?? [],
-      platform_fit: parsed.platform_fit ?? {},
-      overall_score: Number(parsed.overall_score) || 0,
-      word_count: wordCount,
-      estimated_pages: Math.ceil(wordCount / 250), // 한국어 기준 페이지당 약 250단어
-    }
-  } catch (err) {
-    // Claude 분석 실패 → failed 상태로 업데이트
-    await supabase
-      .from('diagnostics')
-      .update({ status: 'failed' })
-      .eq('id', diagnostic.id)
-
-    return NextResponse.json({ error: '원고 분석 중 오류가 발생했습니다.' }, { status: 502 })
-  }
-
-  // ── 5. 결과 저장 ──────────────────────────────────────────────
-  const { error: updateError } = await supabase
-    .from('diagnostics')
-    .update({ status: 'completed', report })
-    .eq('id', diagnostic.id)
-
-  if (updateError) {
-    return NextResponse.json({ error: '진단 결과 저장 중 오류가 발생했습니다.' }, { status: 500 })
-  }
+  await inngest.send({
+    name: 'diagnostic/analyze',
+    data: {
+      diagnosticId: diagnostic.id,
+      textContent,
+      wordCount,
+      fileName: file.name,
+    },
+  })
 
   return NextResponse.json({
-    data: { id: diagnostic.id, status: 'completed' },
+    data: { id: diagnostic.id, status: 'processing' },
   })
 }
 
 // ── GET: 진단 상태·결과 폴링 ─────────────────────────────────────
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const id = searchParams.get('id')
   const token = searchParams.get('token')   // 비회원 폴링: session_token 직접 전달
@@ -242,13 +215,3 @@ function countKoreanWords(text: string): number {
   return text.split(/\s+/).filter((w) => w.length > 0).length
 }
 
-/** Claude 응답에서 JSON 블록만 추출 */
-function extractJson(text: string): string {
-  // ```json ... ``` 블록 처리
-  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
-  if (codeBlockMatch) return codeBlockMatch[1].trim()
-  // 중괄호로 시작하는 JSON 직접 추출
-  const jsonMatch = text.match(/\{[\s\S]*\}/)
-  if (jsonMatch) return jsonMatch[0]
-  return text.trim()
-}

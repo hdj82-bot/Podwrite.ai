@@ -13,7 +13,7 @@
 import { inngest } from './client'
 import { createServiceClient } from '@/lib/supabase-server'
 import { chargeBilling, generateOrderId, TossPaymentsError } from '@/lib/toss-payments'
-import { Resend } from 'resend'
+import { sendBillingFailedEmail } from '@/lib/email'
 
 const PLAN_AMOUNTS: Record<string, number> = {
   basic: 9_900,
@@ -121,7 +121,7 @@ export const billingCycleJob = inngest.createFunction(
             ])
 
             // 결제 실패 이메일 발송
-            await sendPaymentFailureEmail(sub.user_id, sub.plan, errorMessage)
+            await sendBillingFailedEmailForUser(sub.user_id)
 
             results.expired++
           } else {
@@ -154,40 +154,18 @@ export const billingCycleJob = inngest.createFunction(
   },
 )
 
-// ── 결제 실패 이메일 ──────────────────────────────────────────────────────
+// ── 결제 실패 이메일 헬퍼 (userId → 이메일 조회 후 발송) ─────────────────────
 
-async function sendPaymentFailureEmail(
-  userId: string,
-  plan: string,
-  errorMessage: string,
-): Promise<void> {
-  const resendKey = process.env.SECRET_RESEND_API_KEY
-  if (!resendKey) return
+async function sendBillingFailedEmailForUser(userId: string): Promise<void> {
+  if (!process.env.SECRET_RESEND_API_KEY) return
 
   const supabase = createServiceClient()
-  const { data: user } = await supabase.from('users').select('email').eq('id', userId).single()
+  const { data: user } = await supabase
+    .from('users')
+    .select('email, name')
+    .eq('id', userId)
+    .single()
   if (!user?.email) return
 
-  const resend = new Resend(resendKey)
-
-  await resend.emails.send({
-    from: 'Podwrite.ai <noreply@podwrite.ai>',
-    to: user.email,
-    subject: '[Podwrite.ai] 결제 실패 안내 — 플랜이 무료로 변경되었습니다',
-    html: `
-<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-  <h2>결제 실패 안내</h2>
-  <p>안녕하세요.</p>
-  <p><strong>${plan.toUpperCase()} 플랜</strong> 월정기결제가 3회 시도 후 최종 실패하여 플랜이 <strong>무료(Free)</strong>로 변경되었습니다.</p>
-  <p>원고, 챕터, 다운로드 기능은 30일간 유지됩니다. 재구독하시면 즉시 기능이 복원됩니다.</p>
-  <p><strong>실패 사유:</strong> ${errorMessage}</p>
-  <a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://podwrite.ai'}/settings/billing"
-     style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">
-    재구독하기
-  </a>
-  <p style="color: #888; font-size: 12px; margin-top: 32px;">
-    Podwrite.ai | 구독 문의: support@podwrite.ai
-  </p>
-</div>`,
-  })
+  await sendBillingFailedEmail(user.email, user.name ?? user.email.split('@')[0])
 }
