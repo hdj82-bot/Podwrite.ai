@@ -44,6 +44,17 @@ export const editorBridge = {
     return true
   },
 
+  /**
+   * 에디터에 포커스 복원
+   * AI 사이드바 닫기 등 외부 요소에서 포커스가 이동한 후 복원할 때 사용
+   * @returns 포커스 성공 여부
+   */
+  focus(): boolean {
+    if (!_editor) return false
+    _editor.commands.focus()
+    return true
+  },
+
   /** 에디터 인스턴스가 등록되어 있는지 확인 */
   isReady(): boolean {
     return _editor !== null

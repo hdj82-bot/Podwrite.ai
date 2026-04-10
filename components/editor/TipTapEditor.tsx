@@ -38,6 +38,9 @@ export default function TipTapEditor({ chapterId, onWordCountChange }: TipTapEdi
   const latestContent = useRef<unknown>(null)
   const latestWordCount = useRef(0)
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 언마운트 cleanup에서 chapterId를 안전하게 참조하기 위한 ref
+  const chapterIdRef = useRef(chapterId)
+  chapterIdRef.current = chapterId
 
   // ── 저장 함수 ──────────────────────────────────────────────────────────
   const doSave = useCallback(
@@ -93,6 +96,17 @@ export default function TipTapEditor({ chapterId, onWordCountChange }: TipTapEdi
       attributes: {
         // prose-sm으로 기본 타이포그래피, 좌우 패딩으로 원고지 느낌
         class: 'prose prose-sm max-w-none focus:outline-none px-16 py-10',
+      },
+      handleDOMEvents: {
+        // 한글 IME 조합 중 Enter 키 이중 처리 방지
+        // 일부 브라우저(Chrome/Windows)에서 compositionend 전에 keydown이 발화되어
+        // 미완성 음절이 확정되는 동시에 새 단락이 삽입되는 버그를 막음
+        keydown: (view, event) => {
+          if (view.composing && event.key === 'Enter') {
+            return true
+          }
+          return false
+        },
       },
     },
     // onUpdate는 useEffect에서 editor.on()으로 등록 (stale closure 방지)
@@ -184,7 +198,22 @@ export default function TipTapEditor({ chapterId, onWordCountChange }: TipTapEdi
   // ── 언마운트 정리 ─────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
+      // 타이머가 살아 있는 경우 = debounce 대기 중 = 미저장 변경 있음
+      // 타이머를 취소하고 즉시 플러시하여 챕터 전환 시 내용 손실 방지
+      // doSave()는 setState를 호출하므로 언마운트 후엔 직접 fetch 사용
+      const hasPending = autosaveTimer.current !== null
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
+      if (hasPending && latestContent.current !== null) {
+        fetch(`/api/chapters/${chapterIdRef.current}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: latestContent.current,
+            word_count: latestWordCount.current,
+            trigger: 'autosave',
+          }),
+        }).catch(() => {})
+      }
     }
   }, [])
 
