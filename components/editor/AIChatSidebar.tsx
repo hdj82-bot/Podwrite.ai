@@ -154,6 +154,15 @@ function ChatPanel({ uid, mode, onInsert }: ChatPanelProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // 모드 탭 전환(언마운트) 시 진행 중인 SSE 스트리밍 중단
+  // cleanup 없으면 fetch가 백그라운드에서 계속 실행되고
+  // 언마운트된 컴포넌트에 setMessages를 호출해 메모리 누수 발생
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+    }
+  }, [])
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value)
     const el = e.target
