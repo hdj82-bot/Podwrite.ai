@@ -29,12 +29,13 @@ interface CopyGeneratorProps {
 }
 
 interface GeneratedCopy {
-  titles: string[]
+  titles:      string[]
   description: string
-  keywords: string[]
+  author_bio:  string
+  keywords:    string[]
 }
 
-type ApiType = 'all' | 'title' | 'description' | 'keywords'
+type ApiType = 'all' | 'title' | 'description' | 'author_bio' | 'keywords'
 type RevisionTarget = ApiType
 
 // ── 플랫폼 메타 ────────────────────────────────────────────────────
@@ -57,9 +58,10 @@ const PLATFORMS: Array<{
 
 const REVISION_TARGETS: Array<{ value: RevisionTarget; label: string }> = [
   { value: 'description', label: '소개문' },
-  { value: 'title', label: '제목 후보' },
-  { value: 'keywords', label: '키워드' },
-  { value: 'all', label: '전체' },
+  { value: 'title',       label: '제목 후보' },
+  { value: 'author_bio',  label: '저자 소개' },
+  { value: 'keywords',    label: '키워드' },
+  { value: 'all',         label: '전체' },
 ]
 
 // ── 메인 컴포넌트 ──────────────────────────────────────────────────
@@ -82,7 +84,7 @@ export default function CopyGenerator({ projectId, title, genre }: CopyGenerator
   const [revisionText, setRevisionText] = useState('')
 
   // ── API 호출 ─────────────────────────────────────────────────────
-  async function callApi(type: ApiType) {
+  async function callApi(type: ApiType, withRevision = false) {
     setLoading(true)
     setError(null)
 
@@ -90,7 +92,16 @@ export default function CopyGenerator({ projectId, title, genre }: CopyGenerator
       const res = await fetch('/api/selling/copy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, platform, type }),
+        body: JSON.stringify({
+          projectId,
+          platform,
+          type,
+          // 작가 메모 — 항상 전달 (비어 있으면 API에서 무시)
+          coreContent:  coreContent  || undefined,
+          targetReader: targetReader || undefined,
+          // 수정 요청 지시사항 — handleRevise()에서만 전달
+          revisionText: withRevision ? (revisionText || undefined) : undefined,
+        }),
       })
 
       // SSE 스트리밍 응답 처리
@@ -134,6 +145,7 @@ export default function CopyGenerator({ projectId, title, genre }: CopyGenerator
       return {
         titles:      type === 'title'       ? (data.titles      ?? prev.titles)      : prev.titles,
         description: type === 'description' ? (data.description ?? prev.description) : prev.description,
+        author_bio:  type === 'author_bio'  ? (data.author_bio  ?? prev.author_bio)  : prev.author_bio,
         keywords:    type === 'keywords'    ? (data.keywords    ?? prev.keywords)    : prev.keywords,
       }
     })
@@ -150,7 +162,7 @@ export default function CopyGenerator({ projectId, title, genre }: CopyGenerator
   }
 
   function handleRevise() {
-    callApi(revisionTarget)
+    callApi(revisionTarget, true)
     setRevisionText('')
   }
 
@@ -381,6 +393,15 @@ export default function CopyGenerator({ projectId, title, genre }: CopyGenerator
             content={result.titles}
             variant="list"
           />
+
+          {/* 저자 소개 */}
+          {result.author_bio && (
+            <PlatformCopyCard
+              label="저자 소개"
+              content={result.author_bio}
+              variant="text"
+            />
+          )}
 
           {/* 검색 키워드 */}
           <PlatformCopyCard
