@@ -12,7 +12,7 @@
  * "제출 패키지 ZIP 다운로드" → POST /api/kdp/package
  */
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   CheckCircle2,
   Circle,
@@ -59,6 +59,46 @@ export default function SubmissionPackage({
   const [genError, setGenError] = useState<string | null>(null)
   const [aiDisclosure, setAiDisclosure] = useState<AiDisclosureLevel | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const channelRef = useRef<any>(null)
+
+  // Realtime 구독 정리
+  useEffect(() => {
+    return () => {
+      channelRef.current?.unsubscribe()
+    }
+  }, [])
+
+  function subscribeToPackageStatus() {
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`kdp-package-${projectId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'projects', filter: `id=eq.${projectId}` },
+        (payload: { new: Record<string, unknown> }) => {
+          const pkg = payload.new?.kdp_package as {
+            status: string
+            download_url?: string
+            files_missing?: string[]
+            error?: string
+          } | null
+          if (!pkg) return
+          if (pkg.status === 'done') {
+            setDownloadUrl(pkg.download_url ?? null)
+            setMissingFiles(pkg.files_missing ?? [])
+            setGenerating(false)
+            channel.unsubscribe()
+          } else if (pkg.status === 'error') {
+            setGenError(pkg.error ?? '패키지 생성 중 오류가 발생했습니다. 다시 시도해 주세요.')
+            setGenerating(false)
+            channel.unsubscribe()
+          }
+        },
+      )
+      .subscribe()
+    channelRef.current = channel
+  }
 
   const hasMetadata = metadata !== null && metadata.title.trim().length > 0
 
@@ -138,6 +178,10 @@ export default function SubmissionPackage({
 
   // ── ZIP 패키지 생성 ────────────────────────────────────────────────
   async function generatePackage() {
+    // 이전 Realtime 구독 정리
+    channelRef.current?.unsubscribe()
+    channelRef.current = null
+
     setGenerating(true)
     setGenError(null)
     setDownloadUrl(null)
@@ -156,8 +200,11 @@ export default function SubmissionPackage({
                 subtitle: metadata.subtitle,
                 description: metadata.description,
                 keywords: metadata.keywords,
-                bisacCode: metadata.bisacCategories[0]?.code,
-                bisacLabel: metadata.bisacCategories[0]?.label,
+                bisac_codes: metadata.bisacCategories
+                  .slice(0, 2)
+                  .map((c: { code: string }) => c.code),
+                bisac_code: metadata.bisacCategories[0]?.code,
+                bisac_label: metadata.bisacCategories[0]?.label,
                 language: metadata.language,
                 author: metadata.author,
                 price_usd: parseFloat(metadata.price_usd) || 2.99,
@@ -168,13 +215,11 @@ export default function SubmissionPackage({
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
 
-      setDownloadUrl(json.data.download_url)
-      if (json.data.files_missing?.length > 0) {
-        setMissingFiles(json.data.files_missing)
-      }
+      // 202 Accepted: Inngest 잡이 백그라운드에서 처리 중
+      // Supabase Realtime으로 projects.kdp_package 변경 감지
+      subscribeToPackageStatus()
     } catch (err) {
-      setGenError(err instanceof Error ? err.message : 'ZIP 생성 실패')
-    } finally {
+      setGenError(err instanceof Error ? err.message : '패키지 생성 요청 실패')
       setGenerating(false)
     }
   }
@@ -369,7 +414,7 @@ export default function SubmissionPackage({
           {generating ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              패키지 생성 중...
+              패키지 생성 중... (완료 시 자동으로 다운로드 링크가 표시됩니다)
             </>
           ) : (
             <>

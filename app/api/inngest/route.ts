@@ -12,6 +12,7 @@ import { generateEpubJob } from '@/inngest/generate-epub'
 import { translateJob } from '@/inngest/translate'
 import { billingCycleJob } from '@/inngest/billing-cycle'
 import { analyzeDiagnosticJob } from '@/inngest/analyze-diagnostic'
+import { generateKdpPackageJob } from '@/inngest/generate-kdp-package'
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -21,5 +22,6 @@ export const { GET, POST, PUT } = serve({
     translateJob,
     billingCycleJob,
     analyzeDiagnosticJob,
+    generateKdpPackageJob,
   ],
 })

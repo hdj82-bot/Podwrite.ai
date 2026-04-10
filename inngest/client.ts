@@ -59,4 +59,24 @@ export type PodwriteEvents = {
       fileName: string
     }
   }
+  // KDP 제출 패키지 생성
+  'kdp/package.requested': {
+    data: {
+      project_id: string
+      user_id: string
+      metadata?: {
+        title?: string
+        subtitle?: string
+        author?: string
+        bisac_codes?: string[]
+        bisac_code?: string
+        bisac_label?: string
+        keywords?: string[]
+        description?: string
+        language?: string
+        price_usd?: number
+        ai_disclosure?: string
+      }
+    }
+  }
 }

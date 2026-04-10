@@ -25,7 +25,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getCurrentUserWithProfile, createServerClient } from '@/lib/supabase-server'
-import { PLAN_LIMITS } from '@/types'
+import { checkPlanAccess } from '@/lib/plan-guard'
 
 const schema = z.object({
   projectId: z.string().uuid(),
@@ -49,9 +49,10 @@ export async function POST(request: Request) {
     }
 
     // Pro 플랜 전용
-    if (!PLAN_LIMITS[profile.plan]?.kdp) {
+    const access = await checkPlanAccess(authUser.id, 'kdp')
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: 'KDP 글로벌 모듈은 Pro 플랜 전용입니다.' },
+        { error: access.reason ?? 'KDP 글로벌 모듈은 Pro 플랜 전용입니다.' },
         { status: 403 },
       )
     }
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
     }
 
     const { projectId, metadata } = parsed.data
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // 프로젝트 소유권 확인
     const { data: project, error: projectError } = await supabase

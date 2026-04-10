@@ -14,7 +14,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getCurrentUserWithProfile, createServerClient } from '@/lib/supabase-server'
 import { callClaude } from '@/lib/claude'
-import { PLAN_LIMITS } from '@/types'
+import { checkPlanAccess } from '@/lib/plan-guard'
 
 const schema = z.object({
   projectId: z.string().uuid(),
@@ -97,9 +97,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
   }
 
-  if (!PLAN_LIMITS[profile.plan].kdp) {
+  const access = await checkPlanAccess(authUser.id, 'kdp')
+  if (!access.allowed) {
     return NextResponse.json(
-      { error: 'KDP 메타데이터 생성은 Pro 플랜 전용 기능입니다.' },
+      { error: access.reason ?? 'KDP 메타데이터 생성은 Pro 플랜 전용 기능입니다.' },
       { status: 403 },
     )
   }
