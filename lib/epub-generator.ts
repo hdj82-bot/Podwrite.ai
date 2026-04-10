@@ -25,8 +25,8 @@ function loadFontBuffer(): Buffer | null {
   try {
     const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NanumGothic.otf')
     return fs.readFileSync(fontPath)
-  } catch {
-    console.warn('[epub-generator] NanumGothic.otf 폰트 파일을 찾을 수 없습니다.')
+  } catch (err) {
+    console.error('[epub-generator] NanumGothic.otf 폰트 파일을 찾을 수 없습니다.', err)
     return null
   }
 }

@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   if (!isValid) {
     // 개발 환경에서는 서명 검증 건너뜀
     if (process.env.NODE_ENV === 'production') {
-      return NextResponse.json({ error: '서명 검증 실패' }, { status: 401 })
+      return NextResponse.json({ error: '서명 검증 실패' }, { status: 400 })
     }
   }
 

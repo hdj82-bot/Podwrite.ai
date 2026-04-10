@@ -11,7 +11,7 @@
  *   - 상단 바에 "내보내기" 버튼 + ExportModal 추가
  *   - onInsert → editorBridge.insert(text) 호출
  */
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import {
   ChevronLeft,
@@ -86,10 +86,19 @@ export default function EditorPage({
     editorBridge.insert(text)
   }, [])
 
-  // VersionHistoryPanel → 버전 복원
+  // VersionHistoryPanel → 버전 복원 후 패널 닫기
   const handleRestore = useCallback((content: TipTapDocument) => {
     editorBridge.restoreContent(content)
+    setShowHistory(false)
   }, [])
+
+  // AI 사이드바가 닫힐 때 에디터 포커스 복원
+  // 사이드바 textarea 등에 빼앗긴 포커스를 돌려줌
+  useEffect(() => {
+    if (!chatOpen && selectedChapterId) {
+      editorBridge.focus()
+    }
+  }, [chatOpen, selectedChapterId])
 
   return (
     <div className="flex h-screen overflow-hidden bg-white">

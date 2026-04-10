@@ -20,6 +20,7 @@ import { useState } from 'react'
 import { X, FileText, BookOpen, Loader2, Check, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Platform } from '@/types'
+import CoverGuideModal from '@/components/cover/CoverGuideModal'
 
 // ── 타입 ─────────────────────────────────────────────────────────────
 
@@ -69,6 +70,9 @@ export default function ExportModal({ projectId, onClose }: ExportModalProps) {
   // 요청 상태
   const [status, setStatus] = useState<RequestStatus>('idle')
   const [message, setMessage] = useState<string>('')
+
+  // 표지 규격 가이드 모달
+  const [showCoverGuide, setShowCoverGuide] = useState(false)
 
   const handleSubmit = async () => {
     setStatus('loading')
@@ -125,7 +129,17 @@ export default function ExportModal({ projectId, onClose }: ExportModalProps) {
   const isLoading = status === 'loading'
 
   return (
-    // 오버레이
+    <>
+    {/* 표지 규격 가이드 모달 (ExportModal 위에 렌더, z-[60]) */}
+    {showCoverGuide && (
+      <CoverGuideModal
+        projectId={projectId}
+        platform={docxOpts.platform}
+        onClose={() => setShowCoverGuide(false)}
+      />
+    )}
+
+    {/* 오버레이 */}
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
@@ -208,18 +222,27 @@ export default function ExportModal({ projectId, onClose }: ExportModalProps) {
               </div>
 
               {/* 표지 포함 */}
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={docxOpts.include_cover}
-                  onChange={(e) => setDocxOpts((prev) => ({ ...prev, include_cover: e.target.checked }))}
-                  className="w-4 h-4 rounded accent-black"
-                />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">표지 페이지 포함</p>
-                  <p className="text-xs text-gray-500">책 제목, 저자명 표지를 첫 페이지에 추가</p>
-                </div>
-              </label>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-3 cursor-pointer flex-1">
+                  <input
+                    type="checkbox"
+                    checked={docxOpts.include_cover}
+                    onChange={(e) => setDocxOpts((prev) => ({ ...prev, include_cover: e.target.checked }))}
+                    className="w-4 h-4 rounded accent-black"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">표지 페이지 포함</p>
+                    <p className="text-xs text-gray-500">책 제목, 저자명 표지를 첫 페이지에 추가</p>
+                  </div>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowCoverGuide(true)}
+                  className="shrink-0 px-2.5 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                >
+                  규격 보기
+                </button>
+              </div>
             </>
           ) : (
             <>
@@ -322,5 +345,6 @@ export default function ExportModal({ projectId, onClose }: ExportModalProps) {
         </div>
       </div>
     </div>
+    </>
   )
 }

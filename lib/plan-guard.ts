@@ -94,8 +94,8 @@ export async function checkPlanAccess(
         .single()
 
       if (usage) {
-        // reset_at이 지났으면 초과 아님 (다음 주기)
-        const isExpired = new Date(usage.reset_at) < new Date()
+        // reset_at이 없거나 지났으면 초과 아님 (다음 주기)
+        const isExpired = !usage.reset_at || new Date(usage.reset_at) < new Date()
         if (!isExpired && usage.count >= limits.searchPerMonth) {
           return {
             allowed: false,
