@@ -15,16 +15,17 @@ export default async function DashboardPage() {
   const { data: projects, error } = await supabase
     .from('projects')
     .select('*')
+    .eq('user_id', authUser.id)
     .order('updated_at', { ascending: false })
+
+  if (error) {
+    console.error('projects fetch error', error)
+  }
 
   const plan: Plan = (profile?.plan as Plan) ?? 'free'
   const projectList: Project[] = (projects ?? []) as Project[]
   const limit = PLAN_LIMITS[plan].projects
   const limitLabel = limit === Infinity ? '무제한' : `${projectList.length} / ${limit}개`
-
-  if (error) {
-    console.error('projects fetch error', error)
-  }
 
   return (
     <DashboardClient

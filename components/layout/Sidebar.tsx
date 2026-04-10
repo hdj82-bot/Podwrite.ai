@@ -24,7 +24,7 @@ const NAV_ITEMS = [
     ),
   },
   {
-    href: '/dashboard/diagnostics',
+    href: '/diagnostics',
     label: '원고 진단',
     exact: false,
     icon: (
@@ -35,7 +35,7 @@ const NAV_ITEMS = [
     ),
   },
   {
-    href: '/dashboard/settings',
+    href: '/settings',
     label: '설정',
     exact: false,
     icon: (
@@ -104,7 +104,7 @@ export default function Sidebar({ plan, email }: SidebarProps) {
           </span>
           {plan !== 'pro' && (
             <Link
-              href="/dashboard/settings/billing"
+              href="/settings/billing"
               className="text-xs text-purple-400 hover:text-purple-300 font-medium transition-colors"
             >
               업그레이드

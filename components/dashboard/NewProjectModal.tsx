@@ -102,7 +102,7 @@ export default function NewProjectModal({ onClose, currentCount, plan }: NewProj
               현재 {plan === 'free' ? '무료' : '베이직'} 플랜은 최대 {limit}개까지 가능합니다.
             </p>
             <a
-              href="/dashboard/settings/billing"
+              href="/settings/billing"
               className="inline-flex items-center px-5 py-2.5 bg-black text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
             >
               플랜 업그레이드
