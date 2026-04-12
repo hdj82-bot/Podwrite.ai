@@ -26,9 +26,11 @@ export type SaveStatus = 'saved' | 'saving' | 'unsaved'
 interface TipTapEditorProps {
   chapterId: string
   onWordCountChange: (count: number) => void
+  onSpellCheck?: () => void
+  spellCheckActive?: boolean
 }
 
-export default function TipTapEditor({ chapterId, onWordCountChange }: TipTapEditorProps) {
+export default function TipTapEditor({ chapterId, onWordCountChange, onSpellCheck, spellCheckActive }: TipTapEditorProps) {
   const [loading, setLoading] = useState(true)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved')
   const [snapshotting, setSnapshotting] = useState(false)
@@ -226,6 +228,8 @@ export default function TipTapEditor({ chapterId, onWordCountChange }: TipTapEdi
         wordCount={wordCount}
         snapshotting={snapshotting}
         onSnapshot={handleSnapshot}
+        onSpellCheck={onSpellCheck}
+        spellCheckActive={spellCheckActive}
       />
 
       {/* 에디터 본문 */}
