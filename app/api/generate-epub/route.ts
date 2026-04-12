@@ -22,6 +22,7 @@ const schema = z.object({
   project_id: z.string().uuid(),
   language: z.enum(['ko', 'en']).default('ko'),
   include_toc: z.boolean().default(true),
+  auto_toc: z.boolean().default(true),
 })
 
 export async function POST(req: Request) {
@@ -52,6 +53,7 @@ export async function POST(req: Request) {
       user_id: authUser.id,
       language: body.language,
       include_toc: body.include_toc,
+      auto_toc: body.auto_toc,
     },
   })
 

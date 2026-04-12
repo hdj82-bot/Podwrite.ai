@@ -27,7 +27,7 @@ export const generateEpubJob = inngest.createFunction(
   },
   { event: 'file/epub.requested' },
   async ({ event, step }) => {
-    const { project_id, user_id, language, include_toc } = event.data
+    const { project_id, user_id, language, include_toc, auto_toc } = event.data
     const supabase = createServiceClient()
 
     let userEmail: string | null = null
@@ -82,6 +82,7 @@ export const generateEpubJob = inngest.createFunction(
           authorName,
           language,
           includeToc: include_toc,
+          autoToc: auto_toc ?? true,
           chapters: chapters.map((ch) => ({
             id: ch.id,
             title: ch.title,

@@ -23,6 +23,8 @@ const schema = z.object({
   project_id: z.string().uuid(),
   platform: z.enum(['bookk', 'kyobo', 'kdp']),
   include_cover: z.boolean().default(false),
+  include_page_number: z.boolean().default(true),
+  include_header_title: z.boolean().default(false),
 })
 
 export async function POST(req: Request) {
@@ -54,6 +56,8 @@ export async function POST(req: Request) {
       user_id: authUser.id,
       platform: body.platform,
       include_cover: body.include_cover,
+      include_page_number: body.include_page_number,
+      include_header_title: body.include_header_title,
     },
   })
 

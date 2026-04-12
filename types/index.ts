@@ -230,12 +230,16 @@ export interface DocxGenerationOptions {
   platform: Platform
   include_cover: boolean
   font_size?: number
+  include_page_number?: boolean
+  include_header_title?: boolean
 }
 
 export interface EpubGenerationOptions {
   project_id: string
   language: 'ko' | 'en'
   include_toc: boolean
+  auto_toc?: boolean
+  isbn?: string
 }
 
 // ── API 응답 공통 래퍼 ────────────────────────────────────────

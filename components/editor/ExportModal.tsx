@@ -30,11 +30,14 @@ type RequestStatus = 'idle' | 'loading' | 'success' | 'error'
 interface DocxOptions {
   platform: Platform
   include_cover: boolean
+  include_page_number: boolean
+  include_header_title: boolean
 }
 
 interface EpubOptions {
   language: 'ko' | 'en'
   include_toc: boolean
+  auto_toc: boolean
 }
 
 interface ExportModalProps {
@@ -59,12 +62,15 @@ export default function ExportModal({ projectId, onClose }: ExportModalProps) {
   const [docxOpts, setDocxOpts] = useState<DocxOptions>({
     platform: 'bookk',
     include_cover: false,
+    include_page_number: true,
+    include_header_title: false,
   })
 
   // EPUB 옵션
   const [epubOpts, setEpubOpts] = useState<EpubOptions>({
     language: 'ko',
     include_toc: true,
+    auto_toc: true,
   })
 
   // 요청 상태
@@ -89,6 +95,8 @@ export default function ExportModal({ projectId, onClose }: ExportModalProps) {
             project_id: projectId,
             platform: docxOpts.platform,
             include_cover: docxOpts.include_cover,
+            include_page_number: docxOpts.include_page_number,
+            include_header_title: docxOpts.include_header_title,
           }),
         })
       } else {
@@ -99,6 +107,7 @@ export default function ExportModal({ projectId, onClose }: ExportModalProps) {
             project_id: projectId,
             language: epubOpts.language,
             include_toc: epubOpts.include_toc,
+            auto_toc: epubOpts.auto_toc,
           }),
         })
       }
@@ -243,6 +252,34 @@ export default function ExportModal({ projectId, onClose }: ExportModalProps) {
                   규격 보기
                 </button>
               </div>
+
+              {/* 페이지 번호 포함 */}
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={docxOpts.include_page_number}
+                  onChange={(e) => setDocxOpts((prev) => ({ ...prev, include_page_number: e.target.checked }))}
+                  className="w-4 h-4 rounded accent-black"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">페이지 번호 포함</p>
+                  <p className="text-xs text-gray-500">본문 하단 중앙에 페이지 번호 추가</p>
+                </div>
+              </label>
+
+              {/* 헤더에 제목 표시 */}
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={docxOpts.include_header_title}
+                  onChange={(e) => setDocxOpts((prev) => ({ ...prev, include_header_title: e.target.checked }))}
+                  className="w-4 h-4 rounded accent-black"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">헤더에 제목 표시</p>
+                  <p className="text-xs text-gray-500">각 페이지 상단 우측에 책 제목 표시</p>
+                </div>
+              </label>
             </>
           ) : (
             <>
@@ -278,6 +315,21 @@ export default function ExportModal({ projectId, onClose }: ExportModalProps) {
                 <div>
                   <p className="text-sm font-medium text-gray-900">목차(TOC) 포함</p>
                   <p className="text-xs text-gray-500">챕터 제목 기반 자동 목차 생성</p>
+                </div>
+              </label>
+
+              {/* 자동 목차 (헤딩 계층 기반) */}
+              <label className={cn('flex items-center gap-3 cursor-pointer', !epubOpts.include_toc && 'opacity-40 pointer-events-none')}>
+                <input
+                  type="checkbox"
+                  checked={epubOpts.auto_toc}
+                  onChange={(e) => setEpubOpts((prev) => ({ ...prev, auto_toc: e.target.checked }))}
+                  disabled={!epubOpts.include_toc}
+                  className="w-4 h-4 rounded accent-black"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">자동 목차 생성</p>
+                  <p className="text-xs text-gray-500">H1→H2→H3 헤딩 계층 기반 중첩 목차 생성</p>
                 </div>
               </label>
 
