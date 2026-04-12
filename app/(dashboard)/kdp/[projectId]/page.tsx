@@ -29,6 +29,8 @@ interface Project {
   platform: string
   genre: string | null
   description: string | null
+  current_words: number
+  kdp_metadata: Record<string, unknown> | null
 }
 
 interface Chapter {
@@ -91,10 +93,10 @@ export default function KdpPage() {
         .single()
       setPlan((profile?.plan as Plan) ?? 'free')
 
-      // 프로젝트 조회
+      // 프로젝트 조회 (current_words, kdp_metadata 포함)
       const { data: proj, error: projErr } = await supabase
         .from('projects')
-        .select('id, title, platform, genre, description')
+        .select('id, title, platform, genre, description, current_words, kdp_metadata')
         .eq('id', projectId)
         .eq('user_id', user.id)
         .single()
@@ -134,13 +136,9 @@ export default function KdpPage() {
     load()
   }, [projectId, router])
 
-  // ── 메타데이터 저장 ──────────────────────────────────────────────
-  async function handleSaveMeta(meta: KdpMetadata) {
-    setSavingMeta(true)
+  // ── 메타데이터 저장 콜백 (폼 내부에서 DB 저장 후 호출됨) ────────────
+  function handleSaveMeta(meta: KdpMetadata) {
     setMetadata(meta)
-    // 실제 구현에서는 DB의 별도 kdp_metadata 테이블 또는 projects.description에 저장 가능
-    // 여기서는 로컬 상태만 관리 (탭 간 전달용)
-    await new Promise((r) => setTimeout(r, 500)) // UX 피드백용 딜레이
     setSavingMeta(false)
   }
 
@@ -309,8 +307,14 @@ export default function KdpPage() {
             </div>
             <KdpMetadataForm
               projectId={projectId}
-              initialTitle={metadata?.title}
+              initialTitle={metadata?.title ?? project?.title}
               genre={project?.genre}
+              wordCount={project?.current_words ?? 0}
+              initialMetadata={
+                project?.kdp_metadata
+                  ? (project.kdp_metadata as Partial<KdpMetadata>)
+                  : undefined
+              }
               onSave={handleSaveMeta}
               saving={savingMeta}
             />

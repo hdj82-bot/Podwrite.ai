@@ -27,9 +27,15 @@ import { z } from 'zod'
 import { getCurrentUserWithProfile, createServerClient } from '@/lib/supabase-server'
 import { PLAN_LIMITS } from '@/types'
 
+const contributorSchema = z.object({
+  role: z.enum(['editor', 'translator', 'illustrator', 'narrator']),
+  name: z.string().max(100),
+})
+
 const schema = z.object({
   projectId: z.string().uuid(),
   metadata: z.object({
+    // 기존 필드
     title: z.string().max(200).optional(),
     subtitle: z.string().max(200).optional(),
     author: z.string().max(100).optional(),
@@ -38,6 +44,14 @@ const schema = z.object({
     description: z.string().max(4000).optional(),
     language: z.string().length(2).optional(),
     price_usd: z.number().min(0.99).max(999.99).optional(),
+    // 확장 필드
+    isbn: z.string().regex(/^\d{13}$/).optional(),
+    publisher: z.string().max(100).optional(),
+    publication_date: z.string().optional(),
+    maturity_rating: z.enum(['general', 'teen', 'mature']).optional(),
+    contributors: z.array(contributorSchema).max(10).optional(),
+    series_name: z.string().max(200).optional(),
+    series_number: z.string().max(10).optional(),
   }),
 })
 
