@@ -14,13 +14,28 @@
  */
 
 import { useState, useRef } from 'react'
-import { X, Upload, Check, Loader2, AlertCircle, ExternalLink } from 'lucide-react'
+import { X, Upload, Check, Loader2, AlertCircle, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Platform } from '@/types'
 
 // ── 상수 ─────────────────────────────────────────────────────────────
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024 // 10 MB
+
+/**
+ * 플랫폼별 최소 권장 픽셀 해상도 (300 dpi 기준)
+ *   부크크   : 148×210mm  → 1748×2480px
+ *   교보문고 : 152×225mm  → 1795×2657px
+ *   KDP      : 1800×2700px (Amazon 공식 권장)
+ */
+const REQUIRED_PX: Record<Platform, { w: number; h: number }> = {
+  bookk: { w: 1748, h: 2480 },
+  kyobo: { w: 1795, h: 2657 },
+  kdp:   { w: 1800, h: 2700 },
+}
+
+/** 척추(Spine) 두께 계산: 페이지 수 × 0.0572mm (80gsm 일반지 기준) */
+const SPINE_MM_PER_PAGE = 0.0572
 
 // Canva "새 디자인" — books 카테고리로 바로 연결
 const CANVA_URL = 'https://www.canva.com/design/new?category=books'
@@ -77,6 +92,36 @@ export default function CoverGuideModal({
   const [uploadMsg, setUploadMsg]     = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // 해상도 적합성 체크
+  const [resCheck, setResCheck] = useState<'ok' | 'warn' | null>(null)
+  const [resDetail, setResDetail] = useState('')
+
+  // 척추 두께 계산기
+  const [pageCount, setPageCount] = useState('')
+  const [spineOpen, setSpineOpen] = useState(false)
+
+  // ── 유틸 ────────────────────────────────────────────────────────────
+
+  function checkResolution(file: File) {
+    const objUrl = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl)
+      const req = REQUIRED_PX[platform]
+      const { naturalWidth: w, naturalHeight: h } = img
+      if (w >= req.w && h >= req.h) {
+        setResCheck('ok')
+        setResDetail(`${w.toLocaleString('ko-KR')}×${h.toLocaleString('ko-KR')}px — 규격 적합`)
+      } else {
+        setResCheck('warn')
+        setResDetail(
+          `${w.toLocaleString('ko-KR')}×${h.toLocaleString('ko-KR')}px — 권장 ${req.w.toLocaleString('ko-KR')}×${req.h.toLocaleString('ko-KR')}px 미달`,
+        )
+      }
+    }
+    img.src = objUrl
+  }
+
   // ── 핸들러 ──────────────────────────────────────────────────────────
 
   async function handleCopy() {
@@ -108,6 +153,8 @@ export default function CoverGuideModal({
     setPreviewUrl(URL.createObjectURL(file))
     setUploadStatus('idle')
     setUploadMsg('')
+    setResCheck(null)
+    checkResolution(file)
     void doUpload(file)
   }
 
@@ -318,6 +365,111 @@ export default function CoverGuideModal({
                 {uploadStatus === 'error'   && <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
                 {uploadStatus === 'loading' && <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />}
                 <span>{uploadStatus === 'loading' ? '업로드 중...' : uploadMsg}</span>
+              </div>
+            )}
+
+            {/* ── 해상도 적합성 뱃지 ────────────────────────────────── */}
+            {resCheck === 'ok' && (
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-50 border border-green-200 text-xs text-green-700">
+                <Check className="w-3.5 h-3.5 shrink-0 text-green-600" />
+                <div>
+                  <span className="font-semibold">규격 적합</span>
+                  <span className="ml-1.5 text-green-600">{resDetail}</span>
+                </div>
+              </div>
+            )}
+            {resCheck === 'warn' && (
+              <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px text-amber-600" />
+                <div>
+                  <span className="font-semibold">해상도 부족 (업로드는 가능)</span>
+                  <p className="mt-0.5 text-amber-700">{resDetail}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── 척추(Spine) 두께 계산기 ─────────────────────────────── */}
+          <div className="rounded-xl border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setSpineOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+            >
+              <div>
+                <p className="text-sm font-semibold text-gray-800">척추(Spine) 두께 계산기</p>
+                <p className="text-xs text-gray-400 mt-0.5">페이지 수 → 척추 두께 자동 계산</p>
+              </div>
+              {spineOpen
+                ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+                : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+              }
+            </button>
+
+            {spineOpen && (
+              <div className="px-4 py-4 space-y-4 bg-white">
+                {/* 입력 */}
+                <div className="flex items-center gap-3">
+                  <label className="text-xs font-medium text-gray-700 shrink-0">페이지 수</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={2000}
+                    value={pageCount}
+                    onChange={(e) => setPageCount(e.target.value)}
+                    placeholder="예: 250"
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  />
+                  <span className="text-xs text-gray-400 shrink-0">쪽</span>
+                </div>
+
+                {/* 결과 */}
+                {pageCount && parseInt(pageCount) > 0 && (() => {
+                  const pages = parseInt(pageCount)
+                  const spineMM = pages * SPINE_MM_PER_PAGE
+                  const spinePx = Math.round((spineMM / 25.4) * 300)
+                  return (
+                    <div className="rounded-lg bg-indigo-50 border border-indigo-100 px-4 py-3 space-y-2">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-xs text-indigo-500 font-medium">척추 두께</span>
+                        <span className="text-lg font-bold text-indigo-700">
+                          {spineMM.toFixed(2)} <span className="text-sm font-normal">mm</span>
+                        </span>
+                      </div>
+                      <p className="text-xs text-indigo-500">
+                        {spinePx.toLocaleString('ko-KR')}px (300dpi) · 80gsm 일반지 기준
+                      </p>
+                      {/* 플랫폼별 척추 가이드 */}
+                      <div className="pt-2 border-t border-indigo-100 space-y-1.5 text-xs text-gray-600">
+                        <div className="flex justify-between">
+                          <span className="font-medium">부크크</span>
+                          <span className={cn(spineMM < 5 ? 'text-amber-600' : 'text-green-600')}>
+                            {spineMM < 5 ? '척추 표시 불가 (5mm 미만)' : '척추 텍스트 표시 가능'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="font-medium">교보문고</span>
+                          <span className={cn(spineMM < 8 ? 'text-amber-600' : 'text-green-600')}>
+                            {spineMM < 8 ? '척추 영역 협소 (8mm 미만)' : '척추 레이아웃 권장'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="font-medium">Amazon KDP</span>
+                          <span className={cn(spineMM < 6.4 ? 'text-amber-600' : 'text-green-600')}>
+                            {spineMM < 6.4 ? '척추 텍스트 금지 (6.4mm 미만)' : '척추 텍스트 허용'}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-gray-400 pt-1">
+                        * 실제 두께는 인쇄소 용지 규격(gsm·종류)에 따라 차이가 있을 수 있습니다.
+                      </p>
+                    </div>
+                  )
+                })()}
+
+                {/* 공식 설명 */}
+                <p className="text-[11px] text-gray-400">
+                  계산식: 페이지 수 × 0.0572mm (백색 80gsm 모조지 기준)
+                </p>
               </div>
             )}
           </div>
