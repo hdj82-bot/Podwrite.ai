@@ -59,4 +59,44 @@ export const editorBridge = {
   isReady(): boolean {
     return _editor !== null
   },
+
+  /**
+   * 에디터 전체 평문 텍스트 반환 (맞춤법 검사용)
+   */
+  getText(): string {
+    if (!_editor) return ''
+    return _editor.getText()
+  },
+
+  /**
+   * 에디터 내 첫 번째 일치 텍스트를 교정 텍스트로 교체
+   * ProseMirror 트랜잭션을 사용하여 서식을 유지하며 교체합니다.
+   * @returns 교체 성공 여부
+   */
+  replaceText(original: string, corrected: string): boolean {
+    if (!_editor || !original || original === corrected) return false
+
+    let found = false
+    _editor.chain().command(({ tr, dispatch, state }) => {
+      state.doc.descendants((node, pos) => {
+        if (found || !node.isText) return
+        const text = node.text ?? ''
+        const idx = text.indexOf(original)
+        if (idx !== -1) {
+          if (dispatch) {
+            tr.replaceWith(
+              pos + idx,
+              pos + idx + original.length,
+              state.schema.text(corrected),
+            )
+          }
+          found = true
+        }
+      })
+      if (dispatch && found) dispatch(tr)
+      return found
+    }).run()
+
+    return found
+  },
 }
