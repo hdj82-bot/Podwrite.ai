@@ -95,7 +95,9 @@ export interface CoverTextEditorProps {
   title?: string
   authorName?: string
   onExport: (dataUrl: string) => void
-  onClose: () => void
+  onClose?: () => void
+  /** true 이면 모달 래퍼 없이 부모 컨테이너에 인라인으로 렌더됩니다 */
+  embedded?: boolean
 }
 
 // ── 컴포넌트 ──────────────────────────────────────────────────────────────────
@@ -106,7 +108,8 @@ export default function CoverTextEditor({
   title = '',
   authorName = '',
   onExport,
-  onClose,
+  onClose = () => {},
+  embedded = false,
 }: CoverTextEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const bgImageRef = useRef<HTMLImageElement | null>(null)
@@ -315,8 +318,185 @@ export default function CoverTextEditor({
     onExport(exportCanvas.toDataURL('image/png'))
   }
 
+  // ── 공용 JSX: 컨트롤 패널 ────────────────────────────────────────────────────
+  // (embedded / standalone 양쪽에서 재사용, hooks 없이 순수 JSX)
+
+  const layerPanel = (
+    <>
+      {/* 레이어 선택 */}
+      <div className="p-4 border-b border-gray-100">
+        <p className="text-xs font-semibold text-gray-500 mb-2">레이어</p>
+        <div className="space-y-1">
+          {layers.map((layer) => (
+            <div key={layer.id} className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedId(layer.id)}
+                className={cn(
+                  'flex-1 text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors',
+                  selectedId === layer.id
+                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                    : 'text-gray-600 hover:bg-gray-50 border border-transparent',
+                )}
+              >
+                {layer.label}
+              </button>
+              <button
+                onClick={() => updateLayer(layer.id, { visible: !layer.visible })}
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                title={layer.visible ? '숨기기' : '보이기'}
+              >
+                {layer.visible
+                  ? <Eye className="w-3.5 h-3.5" />
+                  : <EyeOff className="w-3.5 h-3.5" />
+                }
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 선택된 레이어 편집 */}
+      {selectedLayer && (
+        <div className="p-4 space-y-4">
+          <p className="text-xs font-semibold text-gray-500">{selectedLayer.label} 편집</p>
+
+          {/* 텍스트 */}
+          <div>
+            <label className="text-[11px] text-gray-500 mb-1 block">텍스트</label>
+            <textarea
+              value={selectedLayer.text}
+              onChange={(e) => updateLayer(selectedLayer.id, { text: e.target.value })}
+              rows={2}
+              className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            />
+          </div>
+
+          {/* 폰트 크기 */}
+          <div>
+            <label className="text-[11px] text-gray-500 mb-1 block">
+              폰트 크기 — {selectedLayer.fontSize}px
+            </label>
+            <input
+              type="range"
+              min={24}
+              max={200}
+              value={selectedLayer.fontSize}
+              onChange={(e) => updateLayer(selectedLayer.id, { fontSize: parseInt(e.target.value) })}
+              className="w-full accent-indigo-600"
+            />
+          </div>
+
+          {/* 굵기 */}
+          <div>
+            <label className="text-[11px] text-gray-500 mb-1.5 block">굵기</label>
+            <div className="flex gap-1">
+              {FONT_WEIGHT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => updateLayer(selectedLayer.id, { fontWeight: opt.value })}
+                  className={cn(
+                    'flex-1 py-1.5 rounded-lg text-xs transition-colors border',
+                    selectedLayer.fontWeight === opt.value
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300',
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 색상 */}
+          <div>
+            <label className="text-[11px] text-gray-500 mb-1 block">색상</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={selectedLayer.color}
+                onChange={(e) => updateLayer(selectedLayer.id, { color: e.target.value })}
+                className="w-8 h-8 rounded border border-gray-200 cursor-pointer p-0.5"
+              />
+              <span className="text-xs text-gray-500 font-mono">{selectedLayer.color}</span>
+            </div>
+            <div className="flex gap-1.5 mt-2 flex-wrap">
+              {['#ffffff', '#000000', '#f8f0ff', '#1a1a2e', '#ffd93d', '#ff6b6b', '#4895ef', '#95d5b2'].map((c) => (
+                <button
+                  key={c}
+                  onClick={() => updateLayer(selectedLayer.id, { color: c })}
+                  style={{ background: c }}
+                  className={cn(
+                    'w-5 h-5 rounded-full border transition-transform hover:scale-110',
+                    selectedLayer.color === c ? 'border-indigo-500 scale-110' : 'border-gray-300',
+                  )}
+                  title={c}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+
   // ── 렌더 ─────────────────────────────────────────────────────────────────────
 
+  // ── embedded 모드: 부모(CoverGuideModal) 탭 내부에 인라인 렌더 ────────────────
+  if (embedded) {
+    return (
+      <div className="flex flex-col flex-1 min-h-0">
+        {/* 본문: 캔버스 + 컨트롤 */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 flex items-center justify-center bg-gray-900 p-3 overflow-auto">
+            <div className="relative">
+              <canvas
+                ref={canvasRef}
+                width={400}
+                height={600}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                className="block rounded-lg shadow-xl cursor-crosshair"
+                style={{ maxHeight: 'calc(90vh - 240px)', width: 'auto' }}
+              />
+              <p className="text-center text-xs text-gray-500 mt-2">
+                <Move className="w-3 h-3 inline mr-1" />
+                텍스트 클릭 후 드래그로 이동
+              </p>
+            </div>
+          </div>
+          {/* 컨트롤 패널 (슬림) */}
+          <div className="w-52 shrink-0 border-l border-gray-200 overflow-y-auto">
+            {layerPanel}
+          </div>
+        </div>
+        {/* 푸터 */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 shrink-0 bg-white">
+          <p className="text-xs text-gray-400">
+            {EXPORT_W.toLocaleString('ko-KR')}×{EXPORT_H.toLocaleString('ko-KR')}px PNG
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              ← 돌아가기
+            </button>
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              저장하기
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── standalone 모드: 전체화면 모달 ───────────────────────────────────────────
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="relative w-full max-w-3xl mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col">
@@ -335,8 +515,6 @@ export default function CoverTextEditor({
 
         {/* 본문 */}
         <div className="flex flex-1 overflow-hidden">
-
-          {/* 캔버스 */}
           <div className="flex-1 flex items-center justify-center bg-gray-900 p-4 overflow-auto">
             <div className="relative">
               <canvas
@@ -356,127 +534,9 @@ export default function CoverTextEditor({
               </p>
             </div>
           </div>
-
           {/* 컨트롤 패널 */}
           <div className="w-64 shrink-0 border-l border-gray-200 overflow-y-auto">
-            {/* 레이어 선택 */}
-            <div className="p-4 border-b border-gray-100">
-              <p className="text-xs font-semibold text-gray-500 mb-2">레이어</p>
-              <div className="space-y-1">
-                {layers.map((layer) => (
-                  <div key={layer.id} className="flex items-center gap-2">
-                    <button
-                      onClick={() => setSelectedId(layer.id)}
-                      className={cn(
-                        'flex-1 text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors',
-                        selectedId === layer.id
-                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                          : 'text-gray-600 hover:bg-gray-50 border border-transparent',
-                      )}
-                    >
-                      {layer.label}
-                    </button>
-                    <button
-                      onClick={() => updateLayer(layer.id, { visible: !layer.visible })}
-                      className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                      title={layer.visible ? '숨기기' : '보이기'}
-                    >
-                      {layer.visible
-                        ? <Eye className="w-3.5 h-3.5" />
-                        : <EyeOff className="w-3.5 h-3.5" />
-                      }
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 선택된 레이어 편집 */}
-            {selectedLayer && (
-              <div className="p-4 space-y-4">
-                <p className="text-xs font-semibold text-gray-500">
-                  {selectedLayer.label} 편집
-                </p>
-
-                {/* 텍스트 */}
-                <div>
-                  <label className="text-[11px] text-gray-500 mb-1 block">텍스트</label>
-                  <textarea
-                    value={selectedLayer.text}
-                    onChange={(e) => updateLayer(selectedLayer.id, { text: e.target.value })}
-                    rows={2}
-                    className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  />
-                </div>
-
-                {/* 폰트 크기 */}
-                <div>
-                  <label className="text-[11px] text-gray-500 mb-1 block">
-                    폰트 크기 — {selectedLayer.fontSize}px
-                  </label>
-                  <input
-                    type="range"
-                    min={24}
-                    max={200}
-                    value={selectedLayer.fontSize}
-                    onChange={(e) =>
-                      updateLayer(selectedLayer.id, { fontSize: parseInt(e.target.value) })
-                    }
-                    className="w-full accent-indigo-600"
-                  />
-                </div>
-
-                {/* 폰트 굵기 */}
-                <div>
-                  <label className="text-[11px] text-gray-500 mb-1.5 block">굵기</label>
-                  <div className="flex gap-1">
-                    {FONT_WEIGHT_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => updateLayer(selectedLayer.id, { fontWeight: opt.value })}
-                        className={cn(
-                          'flex-1 py-1.5 rounded-lg text-xs transition-colors border',
-                          selectedLayer.fontWeight === opt.value
-                            ? 'bg-indigo-600 text-white border-indigo-600'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300',
-                        )}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 색상 */}
-                <div>
-                  <label className="text-[11px] text-gray-500 mb-1 block">색상</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={selectedLayer.color}
-                      onChange={(e) => updateLayer(selectedLayer.id, { color: e.target.value })}
-                      className="w-8 h-8 rounded border border-gray-200 cursor-pointer p-0.5"
-                    />
-                    <span className="text-xs text-gray-500 font-mono">{selectedLayer.color}</span>
-                  </div>
-                  {/* 빠른 색상 선택 */}
-                  <div className="flex gap-1.5 mt-2 flex-wrap">
-                    {['#ffffff', '#000000', '#f8f0ff', '#1a1a2e', '#ffd93d', '#ff6b6b', '#4895ef', '#95d5b2'].map((c) => (
-                      <button
-                        key={c}
-                        onClick={() => updateLayer(selectedLayer.id, { color: c })}
-                        style={{ background: c }}
-                        className={cn(
-                          'w-5 h-5 rounded-full border transition-transform hover:scale-110',
-                          selectedLayer.color === c ? 'border-indigo-500 scale-110' : 'border-gray-300',
-                        )}
-                        title={c}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+            {layerPanel}
           </div>
         </div>
 
