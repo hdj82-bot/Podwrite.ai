@@ -28,6 +28,7 @@ import {
   Loader2,
   Check,
   Dot,
+  SpellCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { SaveStatus } from './TipTapEditor'
@@ -38,6 +39,8 @@ interface EditorToolbarProps {
   wordCount: number
   snapshotting: boolean
   onSnapshot: () => void
+  onSpellCheck?: () => void
+  spellCheckActive?: boolean
 }
 
 interface ToolbarButtonProps {
@@ -95,6 +98,8 @@ export default function EditorToolbar({
   wordCount,
   snapshotting,
   onSnapshot,
+  onSpellCheck,
+  spellCheckActive,
 }: EditorToolbarProps) {
   const status = SAVE_STATUS_MAP[saveStatus]
 
@@ -210,6 +215,21 @@ export default function EditorToolbar({
       >
         <ListOrdered className="w-4 h-4" />
       </ToolbarButton>
+
+      {/* ── 맞춤법 ── */}
+      {onSpellCheck && (
+        <>
+          <Divider />
+          <ToolbarButton
+            onClick={onSpellCheck}
+            active={spellCheckActive}
+            disabled={!editor}
+            title="맞춤법 검사"
+          >
+            <SpellCheck className="w-4 h-4" />
+          </ToolbarButton>
+        </>
+      )}
 
       {/* ── 우측: 저장 상태 + 글자 수 + 스냅샷 ── */}
       <div className="ml-auto flex items-center gap-3">
