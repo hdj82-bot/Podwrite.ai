@@ -272,3 +272,14 @@ export interface PlatformSpec {
   minWords: number
   maxWords: number
 }
+
+// ── KDP 확장 타입 ─────────────────────────────────────────────
+
+export type KdpContributorRole = 'editor' | 'translator' | 'illustrator' | 'narrator'
+
+export interface KdpContributor {
+  role: KdpContributorRole
+  name: string
+}
+
+export type KdpMaturityRating = 'general' | 'teen' | 'mature'

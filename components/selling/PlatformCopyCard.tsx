@@ -161,13 +161,28 @@ export default function PlatformCopyCard({
         </p>
       )}
 
-      {/* ── 글자 수 / 권장 범위 ─────────────────────────────────── */}
+      {/* ── 글자 수 / 권장 범위 + 프로그레스 바 ───────────────── */}
       {range && (
-        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-          <p className="text-xs text-gray-400">{range.guide}</p>
-          <p className={cn('text-xs font-semibold tabular-nums', charColor())}>
-            {charCount.toLocaleString('ko-KR')}자
-          </p>
+        <div className="pt-2 border-t border-gray-100 space-y-1.5">
+          <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+            <div
+              className={cn(
+                'h-full rounded-full transition-all duration-300',
+                charCount < range.min
+                  ? 'bg-red-400'
+                  : charCount > range.max
+                  ? 'bg-amber-400'
+                  : 'bg-green-400',
+              )}
+              style={{ width: `${Math.min((charCount / range.max) * 100, 100)}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-400">{range.guide}</p>
+            <p className={cn('text-xs font-semibold tabular-nums', charColor())}>
+              {charCount.toLocaleString('ko-KR')} / {range.max.toLocaleString('ko-KR')}자
+            </p>
+          </div>
         </div>
       )}
     </div>
