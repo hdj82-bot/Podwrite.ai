@@ -61,7 +61,8 @@ export async function checkSpelling(text: string): Promise<SpellCheckCorrection[
 async function checkChunk(text: string, baseOffset: number): Promise<SpellCheckCorrection[]> {
   const apiUrl = process.env.CLOVA_SPELL_API_URL
   if (!apiUrl) {
-    throw new Error('CLOVA_SPELL_API_URL 환경 변수가 설정되지 않았습니다.')
+    // CLOVA 미설정 시 빈 배열 반환 (개발/스테이징 환경 fallback)
+    return []
   }
 
   const response = await fetch(apiUrl, {
