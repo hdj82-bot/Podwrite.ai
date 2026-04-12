@@ -26,7 +26,7 @@ export const generateDocxJob = inngest.createFunction(
   },
   { event: 'file/docx.requested' },
   async ({ event, step }) => {
-    const { project_id, user_id, platform } = event.data
+    const { project_id, user_id, platform, include_page_number, include_header_title } = event.data
     const supabase = createServiceClient()
 
     let userEmail: string | null = null
@@ -84,6 +84,8 @@ export const generateDocxJob = inngest.createFunction(
             content: ch.content as TipTapDocument | null,
             order_idx: ch.order_idx,
           })),
+          includePageNumber: include_page_number ?? true,
+          includeHeaderTitle: include_header_title ?? false,
         })
 
         const filePath = `${user_id}/${project_id}/export-${platform}.docx`
