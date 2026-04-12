@@ -21,9 +21,11 @@ import {
   Plus,
   Download,
   History,
+  SpellCheck,
 } from 'lucide-react'
 import TipTapEditor from './TipTapEditor'
 import AIChatSidebar from './AIChatSidebar'
+import SpellCheckPanel from './SpellCheckPanel'
 import ExportModal from './ExportModal'
 import VersionHistoryPanel from './VersionHistoryPanel'
 import { editorBridge } from './editorBridge'
@@ -45,6 +47,7 @@ export default function EditorPage({
   const [selectedChapterId, setSelectedChapterId] = useState(initialChapterId)
   const [chapterPanelOpen, setChapterPanelOpen] = useState(true)
   const [chatOpen, setChatOpen] = useState(true)
+  const [spellCheckOpen, setSpellCheckOpen] = useState(false)
   const [showExport, setShowExport] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -92,13 +95,12 @@ export default function EditorPage({
     setShowHistory(false)
   }, [])
 
-  // AI 사이드바가 닫힐 때 에디터 포커스 복원
-  // 사이드바 textarea 등에 빼앗긴 포커스를 돌려줌
+  // AI 사이드바 / 맞춤법 패널이 닫힐 때 에디터 포커스 복원
   useEffect(() => {
-    if (!chatOpen && selectedChapterId) {
+    if (!chatOpen && !spellCheckOpen && selectedChapterId) {
       editorBridge.focus()
     }
-  }, [chatOpen, selectedChapterId])
+  }, [chatOpen, spellCheckOpen, selectedChapterId])
 
   return (
     <div className="flex h-screen overflow-hidden bg-white">
@@ -209,7 +211,10 @@ export default function EditorPage({
             </button>
 
             <button
-              onClick={() => setChatOpen((v) => !v)}
+              onClick={() => {
+                setChatOpen((v) => !v)
+                setSpellCheckOpen(false)
+              }}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors',
                 chatOpen
@@ -229,6 +234,11 @@ export default function EditorPage({
             key={selectedChapterId}
             chapterId={selectedChapterId}
             onWordCountChange={(count) => handleWordCountChange(selectedChapterId, count)}
+            onSpellCheck={() => {
+              setSpellCheckOpen((v) => !v)
+              setChatOpen(false)
+            }}
+            spellCheckActive={spellCheckOpen}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-gray-400">
@@ -256,6 +266,19 @@ export default function EditorPage({
           projectId={project.id}
           onInsert={handleInsert}
         />
+      </aside>
+
+      {/* ── 맞춤법 검사 패널 ────────────────────────────────── */}
+      <aside
+        className={cn(
+          'flex-shrink-0 border-l border-gray-200 transition-all duration-200 overflow-hidden',
+          spellCheckOpen ? 'w-80' : 'w-0',
+        )}
+        aria-label="맞춤법 검사"
+      >
+        {spellCheckOpen && (
+          <SpellCheckPanel onClose={() => setSpellCheckOpen(false)} />
+        )}
       </aside>
 
       {/* ── 내보내기 모달 ──────────────────────────────────── */}
