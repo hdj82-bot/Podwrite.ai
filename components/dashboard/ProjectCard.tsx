@@ -13,16 +13,23 @@ interface ProjectCardProps {
 }
 
 const PLATFORM_BADGE: Record<Project['platform'], { label: string; className: string }> = {
-  bookk: { label: '부크크', className: 'bg-blue-100 text-blue-700' },
-  kyobo: { label: '교보', className: 'bg-green-100 text-green-700' },
-  kdp: { label: 'KDP', className: 'bg-orange-100 text-orange-700' },
+  bookk: { label: '📚 부크크', className: 'bg-blue-100 text-blue-700' },
+  kyobo: { label: '📖 교보', className: 'bg-green-100 text-green-700' },
+  kdp:   { label: '🌐 KDP',  className: 'bg-orange-100 text-orange-700' },
 }
 
 const STATUS_BADGE: Record<Project['status'], { label: string; className: string }> = {
-  draft: { label: '초안', className: 'bg-gray-100 text-gray-600' },
-  in_progress: { label: '집필 중', className: 'bg-yellow-100 text-yellow-700' },
-  completed: { label: '완성', className: 'bg-green-100 text-green-700' },
-  published: { label: '출판됨', className: 'bg-purple-100 text-purple-700' },
+  draft:       { label: '초안',   className: 'bg-gray-100 text-gray-600' },
+  in_progress: { label: '집필 중', className: 'bg-blue-100 text-blue-700' },
+  completed:   { label: '완성',   className: 'bg-green-100 text-green-700' },
+  published:   { label: '출판됨', className: 'bg-purple-100 text-purple-700' },
+}
+
+const STATUS_BORDER: Record<Project['status'], string> = {
+  draft:       'border-l-gray-300',
+  in_progress: 'border-l-blue-400',
+  completed:   'border-l-green-400',
+  published:   'border-l-purple-400',
 }
 
 export default function ProjectCard({ project, onDeleted }: ProjectCardProps) {
@@ -49,7 +56,7 @@ export default function ProjectCard({ project, onDeleted }: ProjectCardProps) {
 
   return (
     <>
-      <div className="group relative flex flex-col gap-4 p-5 bg-white rounded-xl border border-gray-200 hover:border-gray-400 hover:shadow-sm transition-all">
+      <div className={cn('group relative flex flex-col gap-4 p-5 bg-white rounded-xl border border-gray-200 hover:border-gray-400 hover:shadow-sm transition-all border-l-4', STATUS_BORDER[project.status])}>
         {/* 삭제 버튼 (hover 시 표시) */}
         <button
           onClick={(e) => {
