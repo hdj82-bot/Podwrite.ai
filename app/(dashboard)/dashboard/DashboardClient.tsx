@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import ProjectGrid from '@/components/dashboard/ProjectGrid'
 import EmptyState from '@/components/dashboard/EmptyState'
 import NewProjectModal from '@/components/dashboard/NewProjectModal'
 import DashboardStats from '@/components/dashboard/DashboardStats'
+import ProjectFilterBar from '@/components/dashboard/ProjectFilterBar'
 import type { Plan, Project } from '@/types'
 
 interface DashboardClientProps {
@@ -21,6 +22,13 @@ export default function DashboardClient({
   currentCount,
 }: DashboardClientProps) {
   const [showModal, setShowModal] = useState(false)
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>(projects)
+
+  const handleFilterChange = useCallback((filtered: Project[]) => {
+    setFilteredProjects(filtered)
+  }, [])
+
+  const isFiltering = filteredProjects.length !== projects.length
 
   return (
     <main className="flex-1 px-6 py-8">
@@ -41,14 +49,40 @@ export default function DashboardClient({
         </button>
       </div>
 
-      {/* 집필 통계: 스트릭 + 30일 그래프 */}
-      <DashboardStats />
+      {/* 집필 통계: 잔디밭 + 30일 그래프 + 요약 카드 */}
+      <DashboardStats projects={projects} />
+
+      {/* 검색·필터·정렬 바 */}
+      {projects.length > 0 && (
+        <ProjectFilterBar
+          allProjects={projects}
+          onFilterChange={handleFilterChange}
+        />
+      )}
 
       {/* 프로젝트 목록 */}
       {projects.length === 0 ? (
         <EmptyState onNew={() => setShowModal(true)} />
+      ) : filteredProjects.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <svg
+            className="w-10 h-10 text-gray-300 mb-3"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+            />
+          </svg>
+          <p className="text-sm text-gray-500">검색 결과가 없습니다.</p>
+          <p className="text-xs text-gray-400 mt-1">다른 검색어나 필터를 시도해 보세요.</p>
+        </div>
       ) : (
-        <ProjectGrid projects={projects} />
+        <ProjectGrid projects={filteredProjects} />
       )}
 
       {/* 새 프로젝트 모달 */}
