@@ -10,6 +10,7 @@
 import { NextResponse } from 'next/server'
 import {
   createServerClient,
+  createServiceClient,
   getWritingStreak,
   getWritingLogs30Days,
   getKSTDateString,
@@ -39,5 +40,26 @@ export async function GET() {
     logs.push({ date, words: logMap.get(date) ?? 0 })
   }
 
-  return NextResponse.json({ streak, logs })
+  // ── 잔디밭용 49일(7주) 활동 로그 ─────────────────────────────
+  let activityLogs: { date: string; words: number }[] = []
+  try {
+    const svc = createServiceClient()
+    const since49 = getKSTDateString(48)
+    const { data: raw49 } = await svc
+      .from('writing_logs')
+      .select('log_date, words')
+      .eq('user_id', user.id)
+      .gte('log_date', since49)
+
+    const map49 = new Map((raw49 ?? []).map((l) => [l.log_date, l.words]))
+    for (let i = 48; i >= 0; i--) {
+      const date = getKSTDateString(i)
+      activityLogs.push({ date, words: map49.get(date) ?? 0 })
+    }
+  } catch {
+    // writing_logs 테이블 미존재 등 오류 시 빈 배열로 폴백
+    activityLogs = []
+  }
+
+  return NextResponse.json({ streak, logs, activityLogs })
 }
