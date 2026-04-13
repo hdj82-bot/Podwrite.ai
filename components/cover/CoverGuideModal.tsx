@@ -124,6 +124,10 @@ export default function CoverGuideModal({
   const [spineOpen, setSpineOpen]       = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // ── 편집기 탭 저장 상태 ──────────────────────────────────────────
+  const [editorSaving,     setEditorSaving]     = useState(false)
+  const [editorSaveResult, setEditorSaveResult] = useState<'success' | 'error' | null>(null)
+
   // ── 유틸 ─────────────────────────────────────────────────────────
 
   function checkResolution(file: File) {
@@ -178,7 +182,7 @@ export default function CoverGuideModal({
     void doUpload(file)
   }
 
-  async function doUpload(file: File) {
+  async function doUpload(file: File): Promise<boolean> {
     setUploadStatus('loading')
     setUploadMsg('')
     try {
@@ -189,23 +193,28 @@ export default function CoverGuideModal({
       if (!res.ok) {
         setUploadStatus('error')
         setUploadMsg(json.error ?? '업로드 중 오류가 발생했습니다.')
-        return
+        return false
       }
       setUploadStatus('success')
       setUploadMsg('표지 이미지가 저장되었습니다.')
       onUploaded?.(json.data.cover_image_url)
+      return true
     } catch {
       setUploadStatus('error')
       setUploadMsg('네트워크 오류가 발생했습니다.')
+      return false
     }
   }
 
   /**
    * 편집기 탭 "저장하기" 콜백
-   * dataURL → Blob → File 로 변환 후 기존 doUpload 재사용
-   * 완료 후 가이드 탭으로 복귀하여 결과 확인
+   * dataURL → Blob → File → POST /api/projects/{id}/cover
+   * - 업로드 중: 편집기 푸터 스피너 (saving=true)
+   * - 성공/실패: 토스트 1.5초 표시 후 가이드 탭으로 복귀
    */
   async function handleEditorExport(dataUrl: string) {
+    setEditorSaving(true)
+    setEditorSaveResult(null)
     try {
       setWorkingImageUrl(dataUrl)
       const fetchRes = await fetch(dataUrl)
@@ -213,13 +222,19 @@ export default function CoverGuideModal({
       const file     = new File([blob], 'cover.png', { type: 'image/png' })
       setResCheck(null)
       checkResolution(file)
-      await doUpload(file)
+      const ok = await doUpload(file)
+      setEditorSaveResult(ok ? 'success' : 'error')
     } catch {
       setUploadStatus('error')
       setUploadMsg('이미지 처리 중 오류가 발생했습니다.')
+      setEditorSaveResult('error')
     } finally {
-      // 성공/실패 모두 가이드 탭으로 복귀해서 결과 배너를 보여줌
-      setActiveTab('guide')
+      setEditorSaving(false)
+      // 1.5초 후 가이드 탭으로 복귀 — 토스트를 잠깐 보여준 뒤 이동
+      setTimeout(() => {
+        setActiveTab('guide')
+        setEditorSaveResult(null)
+      }, 1500)
     }
   }
 
@@ -567,6 +582,8 @@ export default function CoverGuideModal({
             onExport={handleEditorExport}
             onClose={() => setActiveTab('guide')}
             embedded
+            saving={editorSaving}
+            saveResult={editorSaveResult}
           />
         )}
 
