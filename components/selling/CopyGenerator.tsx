@@ -24,6 +24,7 @@ import PlatformCopyCard from './PlatformCopyCard'
 import CanvaDeepLink from './CanvaDeepLink'
 import SocialSnippets from './SocialSnippets'
 import { cn } from '@/lib/utils'
+import { useToast } from '@/components/ui/Toast'
 
 // ── 타입 ──────────────────────────────────────────────────────────
 type SellingPlatform = 'bookk' | 'kyobo'
@@ -162,6 +163,8 @@ function formatTs(ts: number): string {
 
 // ── 메인 컴포넌트 ──────────────────────────────────────────────────
 export default function CopyGenerator({ projectId, title, genre }: CopyGeneratorProps) {
+  const { toast } = useToast()
+
   // ── 플랫폼 ──────────────────────────────────────────────────────
   const [platform, setPlatform] = useState<SellingPlatform>('bookk')
 
@@ -236,12 +239,16 @@ export default function CopyGenerator({ projectId, title, genre }: CopyGenerator
 
       const json = await res.json()
       if (!res.ok) {
-        setError(json.error ?? '카피 생성 중 오류가 발생했습니다.')
+        const msg = json.error ?? '카피 생성 중 오류가 발생했습니다.'
+        setError(msg)
+        toast(msg, 'error')
         return
       }
       mergeResult(json.data, type)
     } catch {
-      setError('서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.')
+      const msg = '서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.'
+      setError(msg)
+      toast(msg, 'error')
     } finally {
       setLoading(false)
     }
@@ -336,6 +343,7 @@ export default function CopyGenerator({ projectId, title, genre }: CopyGenerator
     a.download = `${title}_${label}_카피.txt`
     a.click()
     URL.revokeObjectURL(url)
+    toast('파일이 다운로드되었습니다.', 'success')
   }
 
   // ── 마케팅 패키지 내보내기 ───────────────────────────────────────
@@ -387,6 +395,7 @@ export default function CopyGenerator({ projectId, title, genre }: CopyGenerator
     a.download = `${title}_마케팅_패키지.txt`
     a.click()
     URL.revokeObjectURL(url)
+    toast('파일이 다운로드되었습니다.', 'success')
   }
 
   // ── 비교 모달에서 보여줄 버전 2개 ────────────────────────────────

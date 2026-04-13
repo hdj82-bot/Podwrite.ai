@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils'
 import BisacSelector, { type BisacCategory } from './BisacSelector'
 import AmazonPreviewPanel from './AmazonPreviewPanel'
 import type { KdpMaturityRating } from '@/types'
+import { useToast } from '@/components/ui/Toast'
 
 // ── 상수 ──────────────────────────────────────────────────────
 
@@ -126,6 +127,7 @@ export default function KdpMetadataForm({
     ...initialMetadata,
   }))
 
+  const { toast } = useToast()
   const [generating, setGenerating] = useState<Record<string, boolean>>({})
   const [errors, setErrors] = useState<Partial<Record<keyof KdpMetadata | 'bisacCategories', string>>>({})
   const [kwInput, setKwInput] = useState('')
@@ -277,9 +279,11 @@ export default function KdpMetadataForm({
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? '저장에 실패했습니다.')
       setSaveToast(true)
+      toast('메타데이터가 저장되었습니다.', 'success')
       onSave(meta)
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : '저장에 실패했습니다.')
+      toast('저장 실패. 다시 시도해 주세요.', 'error')
     } finally {
       setIsSaving(false)
     }
