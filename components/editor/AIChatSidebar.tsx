@@ -14,7 +14,7 @@
  *   onInsert  — "에디터에 삽입" 클릭 시 호출 (EditorPage → editorBridge.insert)
  */
 import { useState, useRef, useEffect, useCallback, useId } from 'react'
-import { Send, Loader2, Trash2, Search, ExternalLink, Plus, CheckSquare, ArrowRight, ClipboardCopy } from 'lucide-react'
+import { Send, Loader2, RotateCcw, Search, ExternalLink, Plus, CheckSquare, ArrowRight, ClipboardCopy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { SearchResultItem } from '@/types'
 
@@ -74,10 +74,11 @@ const CHAT_WELCOME: Record<ChatMode, string> = {
 
 interface AIChatSidebarProps {
   projectId: string
+  chapterId?: string
   onInsert?: (text: string) => void
 }
 
-export default function AIChatSidebar({ projectId, onInsert }: AIChatSidebarProps) {
+export default function AIChatSidebar({ projectId, chapterId, onInsert }: AIChatSidebarProps) {
   const uid = useId()
   const [mode, setMode] = useState<SidebarMode>('writing')
 
@@ -120,9 +121,11 @@ export default function AIChatSidebar({ projectId, onInsert }: AIChatSidebarProp
         />
       ) : (
         <ChatPanel
-          key={mode}
+          key={`${mode}-${chapterId ?? 'global'}`}
           uid={uid}
           mode={mode}
+          projectId={projectId}
+          chapterId={chapterId}
           onInsert={onInsert}
         />
       )}
@@ -135,20 +138,63 @@ export default function AIChatSidebar({ projectId, onInsert }: AIChatSidebarProp
 interface ChatPanelProps {
   uid: string
   mode: ChatMode
+  projectId: string
+  chapterId?: string
   onInsert?: (text: string) => void
 }
 
-function ChatPanel({ uid, mode, onInsert }: ChatPanelProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: `${uid}-welcome`, role: 'assistant', content: CHAT_WELCOME[mode] },
-  ])
+function ChatPanel({ uid, mode, projectId, chapterId, onInsert }: ChatPanelProps) {
+  const storageKey = chapterId
+    ? `pod_chat_${projectId}_${chapterId}_${mode}`
+    : `pod_chat_${projectId}_${mode}`
+
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    // 초기 상태: 환영 메시지만
+    return [{ id: `${uid}-welcome`, role: 'assistant', content: CHAT_WELCOME[mode] }]
+  })
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [restoredCount, setRestoredCount] = useState(0)
+  const [bannerVisible, setBannerVisible] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+
+  // ── 마운트 시 localStorage에서 이전 대화 복원 ──────────────────────
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(storageKey)
+      if (stored) {
+        const parsed: ChatMessage[] = JSON.parse(stored)
+        if (parsed.length > 0) {
+          setMessages([
+            { id: `${uid}-welcome`, role: 'assistant', content: CHAT_WELCOME[mode] },
+            ...parsed,
+          ])
+          setRestoredCount(parsed.length)
+          setBannerVisible(true)
+          const timer = setTimeout(() => setBannerVisible(false), 3000)
+          return () => clearTimeout(timer)
+        }
+      }
+    } catch { /* localStorage 접근 실패 무시 */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // 마운트 시 1회만 실행 (key 변경 시 컴포넌트 자체가 리마운트됨)
+
+  // ── 메시지 변경 시 localStorage에 저장 ────────────────────────────
+  useEffect(() => {
+    // 환영 메시지는 제외하고 저장
+    const toSave = messages.filter((m) => !m.id.endsWith('-welcome') && !m.id.includes('-welcome-'))
+    try {
+      if (toSave.length === 0) {
+        localStorage.removeItem(storageKey)
+      } else {
+        localStorage.setItem(storageKey, JSON.stringify(toSave.slice(-50)))
+      }
+    } catch { /* localStorage 용량 초과 등 무시 */ }
+  }, [messages, storageKey])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -171,8 +217,11 @@ function ChatPanel({ uid, mode, onInsert }: ChatPanelProps) {
   }
 
   const handleClear = () => {
+    try { localStorage.removeItem(storageKey) } catch { /* 무시 */ }
     setMessages([{ id: `${uid}-welcome-${Date.now()}`, role: 'assistant', content: CHAT_WELCOME[mode] }])
     setError(null)
+    setRestoredCount(0)
+    setBannerVisible(false)
   }
 
   const handleSend = useCallback(async () => {
@@ -261,9 +310,23 @@ function ChatPanel({ uid, mode, onInsert }: ChatPanelProps) {
           className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
           title="대화 초기화"
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <RotateCcw className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      {/* 이전 대화 복원 배너 */}
+      {bannerVisible && restoredCount > 0 && (
+        <div className="mx-3 mt-2 flex-shrink-0 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 flex items-center justify-between text-xs text-blue-700">
+          <span>이전 대화 {restoredCount}개 복원됨</span>
+          <button
+            onClick={() => setBannerVisible(false)}
+            className="ml-2 text-blue-400 hover:text-blue-700 leading-none"
+            aria-label="닫기"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* 메시지 목록 */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
