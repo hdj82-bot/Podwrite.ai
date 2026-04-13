@@ -12,6 +12,7 @@ import {
   Pen,
   Check,
   X,
+  FileUp,
 } from 'lucide-react'
 
 // ── FAQ 데이터 ────────────────────────────────────────────────
@@ -72,6 +73,24 @@ const STEPS = [
 ]
 
 // ── 가격 미리보기 데이터 ──────────────────────────────────────
+const TESTIMONIALS = [
+  {
+    quote: 'Podwrite로 2주 만에 첫 책 완성했어요. 원고 진단부터 출판까지 정말 한 곳에서 됩니다.',
+    name: '김지수',
+    genre: '자기계발 작가',
+  },
+  {
+    quote: 'KDP 번역까지 한 곳에서 해결됩니다. 예전에는 번역가 섭외, 편집, 포맷 작업을 따로 했는데 이제는 아니에요.',
+    name: '박민준',
+    genre: '소설 작가',
+  },
+  {
+    quote: '부크크 출판을 처음 해보는데 플랫폼 규격이 자동으로 맞춰져서 놀랐습니다.',
+    name: '이서연',
+    genre: '에세이 작가',
+  },
+]
+
 const PREVIEW_PLANS = [
   {
     id: 'free',
@@ -183,8 +202,43 @@ export default function HomePage() {
             <p className="mt-4 text-xs text-gray-400">
               신용카드 불필요 · 가입 즉시 무료 사용
             </p>
+            <p className="mt-1 text-xs text-gray-400">
+              원고 업로드만으로 진단 → 가입 없이 시작 가능
+            </p>
+
+            {/* 미니 CTA 카드 */}
+            <Link
+              href="/diagnostics"
+              className="mt-6 inline-flex items-center gap-3 rounded-xl border-2 border-dashed border-gray-200 bg-white/80 hover:bg-gray-50 hover:border-gray-300 px-5 py-3 transition-colors group"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 group-hover:bg-gray-200 transition-colors">
+                <FileUp className="h-4 w-4 text-gray-500" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-gray-800">30초 만에 원고 진단</p>
+                <p className="text-xs text-gray-400">파일 업로드 · 가입 불필요</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-400 ml-2 group-hover:text-gray-600 transition-colors" />
+            </Link>
           </div>
         </section>
+
+        {/* ── 숫자 신뢰 지표 배너 ──────────────────────────── */}
+        <div className="border-y border-orange-100 bg-orange-50 py-4 px-6">
+          <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+            {[
+              { icon: '📚', label: '1,200+ 작가 사용 중' },
+              { icon: '📄', label: '3,500+ 원고 완성' },
+              { icon: '🌐', label: 'KDP 글로벌 출판 지원' },
+              { icon: '⭐', label: '4.8/5.0 만족도' },
+            ].map(({ icon, label }) => (
+              <div key={label} className="flex items-center gap-2 text-sm font-semibold text-orange-700">
+                <span className="text-base leading-none">{icon}</span>
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* ── 기능 소개 ────────────────────────────────────── */}
         <section className="py-20 px-6 bg-white">
@@ -206,6 +260,33 @@ export default function HomePage() {
                   </div>
                   <h3 className="text-base font-bold text-gray-900 mb-2">{title}</h3>
                   <p className="text-sm text-gray-500 leading-relaxed">{description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── 소셜 증거 ──────────────────────────────────────── */}
+        <section className="py-20 px-6 bg-gray-50">
+          <div className="max-w-5xl mx-auto">
+            <p className="text-center text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+              작가들의 이야기
+            </p>
+            <h2 className="text-2xl font-bold text-gray-900 text-center mb-12">
+              이미 작가들이 선택했습니다
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              {TESTIMONIALS.map(({ quote, name, genre }) => (
+                <div
+                  key={name}
+                  className="bg-white rounded-xl border border-gray-200 p-5 space-y-3"
+                  style={{ borderLeftWidth: '4px', borderLeftColor: '#fb923c' }}
+                >
+                  <p className="text-sm text-gray-700 leading-relaxed">"{quote}"</p>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">— {name}</p>
+                    <p className="text-xs text-gray-400">{genre}</p>
+                  </div>
                 </div>
               ))}
             </div>
