@@ -338,6 +338,57 @@ export default function CopyGenerator({ projectId, title, genre }: CopyGenerator
     URL.revokeObjectURL(url)
   }
 
+  // ── 마케팅 패키지 내보내기 ───────────────────────────────────────
+  // 두 플랫폼 결과를 한 TXT로 합침.
+  // 현재 세션 결과를 우선하고, 없으면 히스토리 최신 버전을 사용.
+  function handleExportPackage() {
+    const getPlatformData = (plt: SellingPlatform): GeneratedCopy | null => {
+      if (allResults[plt]) return allResults[plt]!
+      const hv = history.find((v) => v.platform === plt)
+      return hv?.result ?? null
+    }
+
+    const bookkData = getPlatformData('bookk')
+    const kyoboData = getPlatformData('kyobo')
+    if (!bookkData && !kyoboData) return
+
+    const lines: string[] = [
+      `[${title} — 마케팅 카피 패키지]`,
+      `생성일: ${new Date().toLocaleDateString('ko-KR')}`,
+      '',
+    ]
+
+    const appendPlatform = (label: string, d: GeneratedCopy) => {
+      lines.push(
+        `===== ${label} =====`,
+        '',
+        '[소개문]',
+        d.description,
+        '',
+        '[제목 후보]',
+        ...d.titles.map((t, i) => `${i + 1}. ${t}`),
+        '',
+        '[저자 소개]',
+        d.author_bio,
+        '',
+        '[검색 키워드]',
+        d.keywords.join(', '),
+        '',
+      )
+    }
+
+    if (bookkData) appendPlatform('부크크', bookkData)
+    if (kyoboData) appendPlatform('교보문고', kyoboData)
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `${title}_마케팅_패키지.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   // ── 비교 모달에서 보여줄 버전 2개 ────────────────────────────────
   const compareVersions = compareIds
     .map((id) => history.find((v) => v.id === id))
@@ -948,6 +999,21 @@ export default function CopyGenerator({ projectId, title, genre }: CopyGenerator
                   d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
               TXT 다운로드
+            </button>
+
+            {/* 마케팅 패키지 내보내기 — 두 플랫폼 합본 */}
+            <button
+              onClick={handleExportPackage}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+              title="부크크·교보문고 카피를 한 파일로 다운로드"
+            >
+              {/* Layers icon */}
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <polygon points="12 2 2 7 12 12 22 7 12 2" strokeLinejoin="round" />
+                <polyline points="2 12 12 17 22 12" strokeLinejoin="round" />
+                <polyline points="2 17 12 22 22 17" strokeLinejoin="round" />
+              </svg>
+              패키지 내보내기
             </button>
           </div>
 
