@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { X, Download, Eye, EyeOff, Move } from 'lucide-react'
+import { X, Download, Eye, EyeOff, Move, Loader2, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Platform } from '@/types'
 
@@ -36,9 +36,9 @@ const FONT_WEIGHT_OPTIONS: { value: TextLayer['fontWeight']; label: string }[] =
   { value: '700', label: '굵게' },
 ]
 
-// 내보내기 해상도
-const EXPORT_W = 1200
-const EXPORT_H = 1800
+// 내보내기 해상도 (KDP 표준 300dpi 기준)
+const EXPORT_W = 1600
+const EXPORT_H = 2560
 
 // ── 유틸 ─────────────────────────────────────────────────────────────────────
 
@@ -98,6 +98,10 @@ export interface CoverTextEditorProps {
   onClose?: () => void
   /** true 이면 모달 래퍼 없이 부모 컨테이너에 인라인으로 렌더됩니다 */
   embedded?: boolean
+  /** 부모가 업로드 중임을 알릴 때 true — embedded 푸터 버튼에 스피너 표시 */
+  saving?: boolean
+  /** 업로드 완료 결과 — embedded 푸터에 토스트 표시 */
+  saveResult?: 'success' | 'error' | null
 }
 
 // ── 컴포넌트 ──────────────────────────────────────────────────────────────────
@@ -110,6 +114,8 @@ export default function CoverTextEditor({
   onExport,
   onClose = () => {},
   embedded = false,
+  saving = false,
+  saveResult = null,
 }: CoverTextEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const bgImageRef = useRef<HTMLImageElement | null>(null)
@@ -473,22 +479,38 @@ export default function CoverTextEditor({
         </div>
         {/* 푸터 */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 shrink-0 bg-white">
-          <p className="text-xs text-gray-400">
-            {EXPORT_W.toLocaleString('ko-KR')}×{EXPORT_H.toLocaleString('ko-KR')}px PNG
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-gray-400">
+              {EXPORT_W.toLocaleString('ko-KR')}×{EXPORT_H.toLocaleString('ko-KR')}px PNG
+            </p>
+            {saveResult === 'success' && (
+              <span className="flex items-center gap-1 text-xs text-green-700 font-medium">
+                <Check className="w-3.5 h-3.5" />
+                표지 저장됨
+              </span>
+            )}
+            {saveResult === 'error' && (
+              <span className="text-xs text-red-600 font-medium">저장 실패</span>
+            )}
+          </div>
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              disabled={saving}
+              className="px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40"
             >
               ← 돌아가기
             </button>
             <button
               onClick={handleExport}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-60"
             >
-              <Download className="w-3.5 h-3.5" />
-              저장하기
+              {saving
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Download className="w-3.5 h-3.5" />
+              }
+              {saving ? '저장 중...' : '저장하기'}
             </button>
           </div>
         </div>

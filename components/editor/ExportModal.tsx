@@ -43,6 +43,8 @@ interface EpubOptions {
 interface ExportModalProps {
   projectId: string
   onClose: () => void
+  /** 현재 저장된 표지 이미지 URL — DOCX 탭 상단 썸네일에 표시 */
+  coverImageUrl?: string | null
 }
 
 // ── 상수 ─────────────────────────────────────────────────────────────
@@ -55,7 +57,7 @@ const PLATFORM_OPTIONS: { value: Platform; label: string; description: string }[
 
 // ── 컴포넌트 ─────────────────────────────────────────────────────────
 
-export default function ExportModal({ projectId, onClose }: ExportModalProps) {
+export default function ExportModal({ projectId, onClose, coverImageUrl }: ExportModalProps) {
   const [format, setFormat] = useState<ExportFormat>('docx')
 
   // DOCX 옵션
@@ -199,6 +201,47 @@ export default function ExportModal({ projectId, onClose }: ExportModalProps) {
         <div className="px-5 pt-4 pb-2 space-y-4">
           {format === 'docx' ? (
             <>
+              {/* ── 표지 썸네일 ─────────────────────────────────────── */}
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 bg-gray-50">
+                {coverImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={coverImageUrl}
+                    alt="표지 미리보기"
+                    className="rounded-md object-cover shrink-0 border border-gray-200"
+                    style={{ width: 60, height: 90 }}
+                  />
+                ) : (
+                  <div
+                    className="shrink-0 rounded-md border border-dashed border-gray-300 bg-gray-100 flex items-center justify-center"
+                    style={{ width: 60, height: 90 }}
+                  >
+                    <span className="text-[10px] text-gray-400 text-center leading-tight px-1">
+                      표지<br />미등록
+                    </span>
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800">
+                    {coverImageUrl ? '등록된 표지' : '표지 미등록'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-snug">
+                    {coverImageUrl
+                      ? '아래에서 표지 포함 여부를 선택할 수 있습니다.'
+                      : '표지를 먼저 등록하면 DOCX에 포함할 수 있습니다.'}
+                  </p>
+                  {!coverImageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setShowCoverGuide(true)}
+                      className="mt-1 text-xs font-medium text-indigo-600 hover:underline"
+                    >
+                      표지 만들기 →
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* 플랫폼 선택 */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-gray-700">출판 플랫폼</p>

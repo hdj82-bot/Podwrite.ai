@@ -275,11 +275,11 @@ export default function CoverTemplateGallery({
   function handleUse() {
     if (!selected) return
     const exportCanvas = document.createElement('canvas')
-    exportCanvas.width = 600
-    exportCanvas.height = 900
+    exportCanvas.width = 1600
+    exportCanvas.height = 2560
     const ctx = exportCanvas.getContext('2d')
     if (!ctx) return
-    drawCover(ctx, 600, 900, activeGenre, selected.pIdx, selected.fIdx, title || '제목', authorName)
+    drawCover(ctx, 1600, 2560, activeGenre, selected.pIdx, selected.fIdx, title || '제목', authorName)
     onSelect(exportCanvas.toDataURL('image/png'))
   }
 
