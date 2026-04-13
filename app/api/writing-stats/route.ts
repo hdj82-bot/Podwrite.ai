@@ -40,6 +40,9 @@ export async function GET() {
     logs.push({ date, words: logMap.get(date) ?? 0 })
   }
 
+  // 오늘 집필량 (KST 기준)
+  const todayWords = logMap.get(getKSTDateString(0)) ?? 0
+
   // ── 잔디밭용 49일(7주) 활동 로그 ─────────────────────────────
   let activityLogs: { date: string; words: number }[] = []
   try {
@@ -61,5 +64,5 @@ export async function GET() {
     activityLogs = []
   }
 
-  return NextResponse.json({ streak, logs, activityLogs })
+  return NextResponse.json({ streak, logs, activityLogs, todayWords })
 }
