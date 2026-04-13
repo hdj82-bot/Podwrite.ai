@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { cn, formatWordCount, formatRelativeTime } from '@/lib/utils'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import type { Project, Chapter } from '@/types'
+import type { Project, Chapter, TipTapDocument, TipTapNode } from '@/types'
 
 interface ChaptersClientProps {
   project: Project
@@ -18,9 +18,25 @@ const PLATFORM_LABEL: Record<Project['platform'], string> = {
   kdp: 'KDP',
 }
 
+function extractPreview(content: TipTapDocument | null | undefined): string {
+  if (!content?.content) return ''
+  return content.content
+    .flatMap((n: TipTapNode) => n.content ?? [])
+    .filter((n: TipTapNode) => n.type === 'text')
+    .map((n: TipTapNode) => n.text ?? '')
+    .join('')
+    .slice(0, 80)
+}
+
 export default function ChaptersClient({ project, chapters: initialChapters }: ChaptersClientProps) {
   const router = useRouter()
   const [chapters, setChapters] = useState<Chapter[]>(initialChapters)
+
+  const totalWords = chapters.reduce((sum, c) => sum + (c.word_count ?? 0), 0)
+  const progressPct =
+    project.target_words > 0
+      ? Math.min(100, Math.round((totalWords / project.target_words) * 100))
+      : 0
 
   // 챕터 추가
   const [addingChapter, setAddingChapter] = useState(false)
@@ -222,6 +238,24 @@ export default function ChaptersClient({ project, chapters: initialChapters }: C
         </div>
       </div>
 
+      {/* 전체 분량 진행률 */}
+      {project.target_words > 0 && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs text-gray-500">전체 분량 진행률</span>
+            <span className="text-xs font-medium text-orange-600">
+              {formatWordCount(totalWords)} / {formatWordCount(project.target_words)} ({progressPct}%)
+            </span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-orange-400 rounded-full transition-all duration-300"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* 챕터 목록 */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {/* 헤더 */}
@@ -332,6 +366,14 @@ export default function ChaptersClient({ project, chapters: initialChapters }: C
                     </span>
                   </div>
                 )}
+
+                {/* 내용 미리보기 */}
+                {editingId !== chapter.id && (() => {
+                  const preview = extractPreview(chapter.content)
+                  return preview ? (
+                    <p className="text-xs text-gray-400 truncate mt-0.5">{preview}</p>
+                  ) : null
+                })()}
               </div>
 
               {/* 액션 버튼들 */}
@@ -339,7 +381,7 @@ export default function ChaptersClient({ project, chapters: initialChapters }: C
                 <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   {/* 에디터에서 열기 */}
                   <Link
-                    href={`/editor/${project.id}`}
+                    href={`/editor/${project.id}?chapter=${chapter.id}`}
                     className="p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                     aria-label="에디터에서 열기"
                     title="에디터에서 열기"
