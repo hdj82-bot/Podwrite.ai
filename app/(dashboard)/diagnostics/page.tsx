@@ -12,8 +12,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Loader2, CheckCircle2 } from 'lucide-react'
 import FileUploader from '@/components/diagnostics/FileUploader'
 import DiagnosticReport from '@/components/diagnostics/DiagnosticReport'
+import { cn } from '@/lib/utils'
 import type { Diagnostic, DiagnosticReport as ReportType } from '@/types'
 
 type Step = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error'
@@ -181,22 +183,9 @@ export default function DashboardDiagnosticsPage() {
           <FileUploader onFile={handleFile} />
         )}
 
-        {/* uploading */}
-        {step === 'uploading' && (
-          <AnalysisStatus
-            icon="upload"
-            title="파일 업로드 중..."
-            description="잠시만 기다려 주세요."
-          />
-        )}
-
-        {/* analyzing */}
-        {step === 'analyzing' && (
-          <AnalysisStatus
-            icon="spin"
-            title="원고를 분석하고 있습니다"
-            description="AI가 원고를 읽고 있습니다. 최대 1~2분이 소요됩니다."
-          />
+        {/* uploading / analyzing */}
+        {(step === 'uploading' || step === 'analyzing') && (
+          <AnalysisSteps step={step} />
         )}
 
         {/* error */}
@@ -236,31 +225,62 @@ export default function DashboardDiagnosticsPage() {
   )
 }
 
-function AnalysisStatus({
-  icon,
-  title,
-  description,
-}: {
-  icon: 'upload' | 'spin'
-  title: string
-  description: string
-}) {
+function AnalysisSteps({ step }: { step: 'uploading' | 'analyzing' }) {
+  const statuses = step === 'uploading'
+    ? ['active', 'pending', 'pending'] as const
+    : ['done', 'active', 'pending'] as const
+  const labels = ['파일 업로드', 'AI 분석 중', '결과 생성']
+
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-10 flex flex-col items-center gap-4 text-center">
-      {icon === 'spin' ? (
-        <div className="w-12 h-12 rounded-full border-4 border-gray-200 border-t-black animate-spin" />
-      ) : (
-        <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center">
-          <svg className="w-6 h-6 text-gray-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round"
-              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-          </svg>
+    <div className="bg-white border border-gray-200 rounded-2xl p-8 flex flex-col items-center gap-6">
+      <div className="w-full max-w-xs">
+        <div className="flex items-center">
+          <StepCircle status={statuses[0]} />
+          <div className={cn('flex-1 h-px', statuses[0] === 'done' ? 'bg-gray-400' : 'bg-gray-200')} />
+          <StepCircle status={statuses[1]} />
+          <div className={cn('flex-1 h-px', statuses[1] === 'done' ? 'bg-gray-400' : 'bg-gray-200')} />
+          <StepCircle status={statuses[2]} />
         </div>
-      )}
-      <div>
-        <p className="text-base font-semibold text-gray-900">{title}</p>
-        <p className="text-sm text-gray-500 mt-1">{description}</p>
+        <div className="grid grid-cols-3 mt-2">
+          {labels.map((label, i) => (
+            <span
+              key={i}
+              className={cn(
+                'text-xs',
+                i === 0 ? 'text-left' : i === 2 ? 'text-right' : 'text-center',
+                statuses[i] === 'done' && 'text-green-600 font-medium',
+                statuses[i] === 'active' && 'text-gray-900 font-semibold',
+                statuses[i] === 'pending' && 'text-gray-400',
+              )}
+            >
+              {label}
+            </span>
+          ))}
+        </div>
       </div>
+      <div className="text-center">
+        <p className="text-sm font-semibold text-gray-900">
+          {step === 'uploading' ? '파일을 업로드하고 있습니다' : '원고를 분석하고 있습니다'}
+        </p>
+        <p className="text-xs text-gray-400 mt-1">약 30–60초 소요</p>
+      </div>
+    </div>
+  )
+}
+
+function StepCircle({ status }: { status: 'done' | 'active' | 'pending' }) {
+  return (
+    <div
+      className={cn(
+        'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
+        status === 'done' && 'bg-green-50 ring-1 ring-green-200',
+        status === 'active' && 'bg-gray-900',
+        status === 'pending' && 'bg-gray-100',
+      )}
+    >
+      {status === 'done' && <CheckCircle2 className="w-5 h-5 text-green-600" />}
+      {status === 'active' && <Loader2 className="w-4 h-4 text-white animate-spin" />}
+      {status === 'pending' && <span className="w-2.5 h-2.5 rounded-full bg-gray-300 block" />}
     </div>
   )
 }
