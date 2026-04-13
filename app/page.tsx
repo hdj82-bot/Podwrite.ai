@@ -14,6 +14,30 @@ import {
   X,
 } from 'lucide-react'
 
+// ── FAQ 데이터 ────────────────────────────────────────────────
+const FAQ_ITEMS = [
+  {
+    q: 'AI가 내 대신 글을 써주나요?',
+    a: '아니요. Podwrite.ai는 집필 보조 도구입니다. AI는 이어쓰기 제안, 자료 검색, 맞춤법·문체 교정을 지원하며, 최종 원고는 작가님이 완성합니다.',
+  },
+  {
+    q: '내보낸 파일 형식은 무엇인가요?',
+    a: '부크크·교보문고용 DOCX, Amazon KDP용 EPUB를 지원합니다. 각 플랫폼의 판형·여백·폰트 규격이 자동 적용되어 추가 편집 없이 바로 제출할 수 있습니다.',
+  },
+  {
+    q: '원고 저작권은 제 것인가요?',
+    a: '100% 작가님 것입니다. AI 학습에 절대 사용하지 않으며, 언제든 DOCX/PDF로 내보내 반출할 수 있습니다. 서비스 해지 후 30일간 다운로드가 유지됩니다.',
+  },
+  {
+    q: '부크크·교보·KDP 어떤 플랫폼이 유리한가요?',
+    a: '국내 독자를 위한 종이책은 부크크·교보가 적합하고, 글로벌 영어 전자책은 Amazon KDP가 유리합니다. 위 로열티 계산기로 예상 수익을 비교해 보세요.',
+  },
+  {
+    q: '무료 플랜에서도 출판 파일을 받을 수 있나요?',
+    a: '네. 무료 플랜도 DOCX 내보내기를 지원합니다. KDP용 EPUB 생성, 셀링 페이지 생성, 한→영 번역은 프로 플랜에서 이용하실 수 있습니다.',
+  },
+]
+
 // ── 기능 카드 데이터 ──────────────────────────────────────────
 const FEATURES = [
   {
@@ -281,6 +305,36 @@ export default function HomePage() {
 
         {/* ── 로열티 계산기 ────────────────────────────────── */}
         <RoyaltyCalculator />
+
+        {/* ── FAQ ─────────────────────────────────────────── */}
+        <section className="py-20 px-6 bg-white">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-900 text-center mb-3">
+              자주 묻는 질문
+            </h2>
+            <p className="text-gray-400 text-center text-sm mb-10">
+              더 궁금한 점은 고객센터로 문의해 주세요.
+            </p>
+            <div className="space-y-3">
+              {FAQ_ITEMS.map((item, i) => (
+                <details
+                  key={i}
+                  className="group rounded-xl border border-gray-200 bg-white overflow-hidden"
+                >
+                  <summary className="flex items-center justify-between px-5 py-4 cursor-pointer list-none select-none">
+                    <span className="text-sm font-medium text-gray-900">{item.q}</span>
+                    <span className="ml-4 shrink-0 text-gray-400 text-lg leading-none transition-transform group-open:rotate-45">
+                      +
+                    </span>
+                  </summary>
+                  <div className="px-5 pb-4">
+                    <p className="text-sm text-gray-600 leading-relaxed">{item.a}</p>
+                  </div>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* ── 비로그인 진단 CTA 배너 ──────────────────────── */}
         <section className="py-16 px-6 bg-gradient-to-br from-purple-600 to-purple-800 text-white">
