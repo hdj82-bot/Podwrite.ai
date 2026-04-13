@@ -37,7 +37,7 @@ export default async function ChaptersPage({
 
   const { data: chapters } = await supabase
     .from('chapters')
-    .select('id, project_id, order_idx, title, word_count, created_at, updated_at')
+    .select('id, project_id, order_idx, title, content, word_count, created_at, updated_at')
     .eq('project_id', projectId)
     .order('order_idx', { ascending: true })
 

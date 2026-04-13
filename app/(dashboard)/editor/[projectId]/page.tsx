@@ -12,10 +12,11 @@ import type { Chapter, Project } from '@/types'
 
 export const metadata = { title: '에디터 — Podwrite.ai' }
 
-type Ctx = { params: Promise<{ projectId: string }> }
+type Ctx = { params: Promise<{ projectId: string }>; searchParams: Promise<{ chapter?: string }> }
 
-export default async function EditorRoute({ params }: Ctx) {
+export default async function EditorRoute({ params, searchParams }: Ctx) {
   const { projectId } = await params
+  const { chapter: chapterParam } = await searchParams
   const { authUser } = await getCurrentUserWithProfile()
   if (!authUser) redirect('/login')
 
@@ -38,7 +39,9 @@ export default async function EditorRoute({ params }: Ctx) {
     .order('order_idx', { ascending: true })
 
   const chapterList = (chapters ?? []) as Chapter[]
-  const firstChapterId = chapterList[0]?.id ?? null
+  const requestedId =
+    chapterParam && chapterList.some((c) => c.id === chapterParam) ? chapterParam : null
+  const firstChapterId = requestedId ?? chapterList[0]?.id ?? null
 
   return (
     <EditorPage
