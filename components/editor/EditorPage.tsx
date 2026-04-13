@@ -30,6 +30,7 @@ import ExportModal from './ExportModal'
 import VersionHistoryPanel from './VersionHistoryPanel'
 import { editorBridge } from './editorBridge'
 import { cn } from '@/lib/utils'
+import { getWritingPrefs } from '@/lib/writing-prefs'
 import type { Chapter, Project, TipTapDocument } from '@/types'
 
 interface EditorPageProps {
@@ -46,7 +47,8 @@ export default function EditorPage({
   const [chapters, setChapters] = useState(initialChapters)
   const [selectedChapterId, setSelectedChapterId] = useState(initialChapterId)
   const [chapterPanelOpen, setChapterPanelOpen] = useState(true)
-  const [chatOpen, setChatOpen] = useState(true)
+  // 집중 모드 기본값: focusModeDefault=true이면 AI 사이드바 기본 닫힘
+  const [chatOpen, setChatOpen] = useState(() => !getWritingPrefs().focusModeDefault)
   const [spellCheckOpen, setSpellCheckOpen] = useState(false)
   const [showExport, setShowExport] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
