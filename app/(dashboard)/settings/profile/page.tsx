@@ -16,6 +16,7 @@ import { PLAN_LIMITS } from '@/types'
 import type { Plan, User } from '@/types'
 import PasswordResetButton from '../PasswordResetButton'
 import AccountDeleteModal from '../AccountDeleteModal'
+import DisplayNameForm from '../DisplayNameForm'
 
 export const metadata = { title: '프로필 설정' }
 
@@ -67,20 +68,13 @@ export default async function ProfileSettingsPage() {
           </div>
         </div>
 
-        {/* 표시 이름 — 읽기 전용 (API 지원 후 활성화 예정) */}
+        {/* 표시 이름 */}
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">
             표시 이름
             <span className="ml-1 font-normal text-gray-400">(선택)</span>
           </label>
-          <input
-            type="text"
-            defaultValue=""
-            readOnly
-            placeholder="아직 설정되지 않았습니다"
-            className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-400 cursor-not-allowed"
-          />
-          <p className="text-xs text-gray-400 mt-1">표시 이름 편집 기능은 준비 중입니다.</p>
+          <DisplayNameForm initialDisplayName={profile?.display_name ?? ''} />
         </div>
 
         {/* 비밀번호 변경 */}

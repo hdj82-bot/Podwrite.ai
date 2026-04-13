@@ -50,6 +50,7 @@ export interface User {
   email: string
   plan: Plan
   plan_expires_at: string | null
+  display_name?: string | null
   terms_agreed_at: string | null
   privacy_agreed_at: string | null
   created_at: string
