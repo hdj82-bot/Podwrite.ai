@@ -18,6 +18,7 @@
  */
 
 import { useState, useRef } from 'react'
+import { useToast } from '@/components/ui/Toast'
 import {
   X, Upload, Check, Loader2, AlertCircle, ExternalLink,
   ChevronDown, ChevronUp, BookOpen, LayoutGrid, PenLine,
@@ -97,6 +98,7 @@ export default function CoverGuideModal({
   onClose,
   onUploaded,
 }: CoverGuideModalProps) {
+  const { toast } = useToast()
   const spec     = COVER_SPECS[platform] ?? COVER_SPECS.bookk
   const widthPx  = mmToPx(spec.widthMM)
   const heightPx = mmToPx(spec.heightMM)
@@ -224,6 +226,8 @@ export default function CoverGuideModal({
       checkResolution(file)
       const ok = await doUpload(file)
       setEditorSaveResult(ok ? 'success' : 'error')
+      if (ok) toast('표지가 프로젝트에 저장되었습니다.', 'success')
+      else toast('업로드 실패', 'error')
     } catch {
       setUploadStatus('error')
       setUploadMsg('이미지 처리 중 오류가 발생했습니다.')
