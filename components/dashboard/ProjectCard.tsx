@@ -3,12 +3,14 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Globe, Tag, Lock } from 'lucide-react'
 import { cn, formatRelativeTime, calcProgress } from '@/lib/utils'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import type { Project } from '@/types'
+import type { Project, Plan, ProjectStatus } from '@/types'
 
 interface ProjectCardProps {
   project: Project
+  plan?: Plan
   onDeleted?: (id: string) => void
 }
 
@@ -32,14 +34,24 @@ const STATUS_BORDER: Record<Project['status'], string> = {
   published:   'border-l-purple-400',
 }
 
-export default function ProjectCard({ project, onDeleted }: ProjectCardProps) {
+const STATUS_CYCLE: Record<ProjectStatus, ProjectStatus> = {
+  draft:       'in_progress',
+  in_progress: 'completed',
+  completed:   'published',
+  published:   'draft',
+}
+
+export default function ProjectCard({ project, plan = 'free', onDeleted }: ProjectCardProps) {
   const router = useRouter()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [status, setStatus] = useState<ProjectStatus>(project.status)
+  const [statusUpdating, setStatusUpdating] = useState(false)
 
   const progress = calcProgress(project.current_words, project.target_words)
   const platform = PLATFORM_BADGE[project.platform]
-  const status = STATUS_BADGE[project.status]
+  const statusBadge = STATUS_BADGE[status]
+  const isPro = plan === 'pro'
 
   async function handleDelete() {
     setDeleting(true)
@@ -54,9 +66,29 @@ export default function ProjectCard({ project, onDeleted }: ProjectCardProps) {
     }
   }
 
+  async function handleStatusCycle(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (statusUpdating) return
+    const next = STATUS_CYCLE[status]
+    setStatus(next)
+    setStatusUpdating(true)
+    try {
+      await fetch(`/api/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: next }),
+      })
+    } catch {
+      setStatus(status) // 실패 시 롤백
+    } finally {
+      setStatusUpdating(false)
+    }
+  }
+
   return (
     <>
-      <div className={cn('group relative flex flex-col gap-4 p-5 bg-white rounded-xl border border-gray-200 hover:border-gray-400 hover:shadow-sm transition-all border-l-4', STATUS_BORDER[project.status])}>
+      <div className={cn('group relative flex flex-col gap-4 p-5 bg-white rounded-xl border border-gray-200 hover:border-gray-400 hover:shadow-sm transition-all border-l-4', STATUS_BORDER[status])}>
         {/* 삭제 버튼 (hover 시 표시) */}
         <button
           onClick={(e) => {
@@ -79,9 +111,18 @@ export default function ProjectCard({ project, onDeleted }: ProjectCardProps) {
             <span className={cn('inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium', platform.className)}>
               {platform.label}
             </span>
-            <span className={cn('inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium', status.className)}>
-              {status.label}
-            </span>
+            {/* 상태 뱃지 — 클릭 시 순환 변경 */}
+            <button
+              onClick={handleStatusCycle}
+              title="클릭하여 상태 변경"
+              className={cn(
+                'inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium transition-opacity',
+                statusBadge.className,
+                statusUpdating ? 'opacity-50' : 'hover:opacity-80',
+              )}
+            >
+              {statusBadge.label}
+            </button>
           </div>
 
           {/* 제목 */}
@@ -120,8 +161,9 @@ export default function ProjectCard({ project, onDeleted }: ProjectCardProps) {
           </p>
         </Link>
 
-        {/* 챕터 관리 링크 */}
-        <div className="border-t border-gray-100 pt-3 -mx-5 px-5">
+        {/* 하단 액션 링크들 */}
+        <div className="border-t border-gray-100 pt-3 -mx-5 px-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {/* 챕터 관리 */}
           <Link
             href={`/dashboard/chapters/${project.id}`}
             onClick={(e) => e.stopPropagation()}
@@ -132,6 +174,40 @@ export default function ProjectCard({ project, onDeleted }: ProjectCardProps) {
                 d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
             </svg>
             챕터 관리
+          </Link>
+
+          {/* KDP 글로벌 (KDP 플랫폼만) */}
+          {project.platform === 'kdp' && (
+            <Link
+              href={isPro ? `/kdp/${project.id}` : '/settings/billing'}
+              onClick={(e) => e.stopPropagation()}
+              className={cn(
+                'flex items-center gap-1 text-xs transition-colors',
+                isPro
+                  ? 'text-orange-600 hover:text-orange-800'
+                  : 'text-gray-400 hover:text-gray-600',
+              )}
+              title={isPro ? 'KDP 글로벌 모듈' : 'Pro 플랜 전용'}
+            >
+              {isPro ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+              KDP 글로벌
+            </Link>
+          )}
+
+          {/* 셀링 페이지 */}
+          <Link
+            href={isPro ? `/selling/${project.id}` : '/settings/billing'}
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              'flex items-center gap-1 text-xs transition-colors',
+              isPro
+                ? 'text-purple-600 hover:text-purple-800'
+                : 'text-gray-400 hover:text-gray-600',
+            )}
+            title={isPro ? '셀링 페이지' : 'Pro 플랜 전용'}
+          >
+            {isPro ? <Tag className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+            셀링
           </Link>
         </div>
       </div>
