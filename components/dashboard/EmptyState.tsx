@@ -28,6 +28,26 @@ export default function EmptyState({ onNew }: EmptyStateProps) {
         </svg>
         새 원고 시작하기
       </button>
+
+      {/* 기능 힌트 */}
+      <div className="mt-8 flex flex-col gap-2 w-full max-w-xs">
+        {[
+          { icon: '✍️', title: 'AI 집필 보조', desc: 'AI와 대화하며 챕터를 완성하세요' },
+          { icon: '🌍', title: 'KDP 글로벌',   desc: 'KDP 글로벌 출판도 자동으로' },
+          { icon: '📊', title: '원고 진단',     desc: '원고 진단으로 출판 준비도 확인' },
+        ].map(({ icon, title, desc }) => (
+          <div
+            key={title}
+            className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 rounded-xl border border-gray-100"
+          >
+            <span className="text-lg select-none shrink-0">{icon}</span>
+            <div className="text-left">
+              <p className="text-xs font-medium text-gray-500">{title}</p>
+              <p className="text-xs text-gray-400">{desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
