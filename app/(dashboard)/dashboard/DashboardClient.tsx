@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import ProjectGrid from '@/components/dashboard/ProjectGrid'
 import EmptyState from '@/components/dashboard/EmptyState'
 import NewProjectModal from '@/components/dashboard/NewProjectModal'
 import DashboardStats from '@/components/dashboard/DashboardStats'
 import ProjectFilterBar from '@/components/dashboard/ProjectFilterBar'
+import OnboardingModal from '@/components/onboarding/OnboardingModal'
 import type { Plan, Project } from '@/types'
 
 interface DashboardClientProps {
@@ -21,8 +22,17 @@ export default function DashboardClient({
   limitLabel,
   currentCount,
 }: DashboardClientProps) {
-  const [showModal, setShowModal] = useState(false)
+  const [showModal, setShowModal]           = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const [filteredProjects, setFilteredProjects] = useState<Project[]>(projects)
+
+  // 신규 사용자 온보딩: localStorage에 완료 기록이 없을 때만 표시
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const done = localStorage.getItem('pod_onboarding_done')
+      if (!done) setShowOnboarding(true)
+    }
+  }, [])
 
   const handleFilterChange = useCallback((filtered: Project[]) => {
     setFilteredProjects(filtered)
@@ -91,6 +101,17 @@ export default function DashboardClient({
           onClose={() => setShowModal(false)}
           currentCount={currentCount}
           plan={plan}
+        />
+      )}
+
+      {/* 온보딩 모달 (신규 사용자, localStorage 미완료 시) */}
+      {showOnboarding && (
+        <OnboardingModal
+          onClose={() => setShowOnboarding(false)}
+          onStartProject={() => {
+            setShowOnboarding(false)
+            setShowModal(true)
+          }}
         />
       )}
     </main>
