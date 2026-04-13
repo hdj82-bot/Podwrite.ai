@@ -20,6 +20,7 @@ import CharacterCount from '@tiptap/extension-character-count'
 import { useEffect, useRef, useCallback, useState } from 'react'
 import EditorToolbar from './EditorToolbar'
 import { editorBridge } from './editorBridge'
+import { getWritingPrefs } from '@/lib/writing-prefs'
 
 export type SaveStatus = 'saved' | 'saving' | 'unsaved'
 
@@ -35,6 +36,11 @@ export default function TipTapEditor({ chapterId, onWordCountChange, onSpellChec
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved')
   const [snapshotting, setSnapshotting] = useState(false)
   const [wordCount, setWordCount] = useState(0)
+
+  // 글쓰기 환경설정에서 autosave 간격 / 폰트 크기 읽기 (마운트 1회)
+  const prefs = getWritingPrefs()
+  const autosaveDelayMs = useRef(prefs.autosaveInterval * 1000)
+  const fontSize = prefs.fontSize
 
   // 최신 콘텐츠를 ref로 보관 (closure stale 문제 방지)
   const latestContent = useRef<unknown>(null)
@@ -67,13 +73,13 @@ export default function TipTapEditor({ chapterId, onWordCountChange, onSpellChec
     [chapterId],
   )
 
-  // ── 자동저장 debounce (2초) ────────────────────────────────────────────
+  // ── 자동저장 debounce (환경설정 autosaveInterval) ─────────────────────
   const scheduleAutosave = useCallback(() => {
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
     autosaveTimer.current = setTimeout(() => {
       doSave('autosave')
-    }, 2000)
-  }, [doSave])
+    }, autosaveDelayMs.current)
+  }, [doSave, autosaveDelayMs])
 
   // ── 수동 스냅샷 ───────────────────────────────────────────────────────
   const handleSnapshot = useCallback(async () => {
@@ -233,7 +239,7 @@ export default function TipTapEditor({ chapterId, onWordCountChange, onSpellChec
       />
 
       {/* 에디터 본문 */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" style={{ fontSize: `${fontSize}px` }}>
         {loading ? (
           <div className="flex items-center justify-center h-40 text-sm text-gray-400">
             불러오는 중...

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { Platform, Plan } from '@/types'
 import { PLAN_LIMITS } from '@/types'
+import { getWritingPrefs } from '@/lib/writing-prefs'
 
 interface NewProjectModalProps {
   onClose: () => void
@@ -35,15 +36,34 @@ const PLATFORMS: { value: Platform; label: string; desc: string; color: string }
 
 const GENRES = ['소설', '자기계발', '에세이', '시집', '비즈니스', '역사', '과학', '기타']
 
+// 장르별 권장 목표 단어 수
+const GENRE_TARGET_WORDS: Record<string, number> = {
+  소설: 50000,
+  자기계발: 35000,
+  에세이: 30000,
+  시집: 10000,
+  비즈니스: 40000,
+  역사: 45000,
+  과학: 40000,
+  기타: 30000,
+}
+
 export default function NewProjectModal({ onClose, currentCount, plan }: NewProjectModalProps) {
   const router = useRouter()
   const limit = PLAN_LIMITS[plan].projects
   const isAtLimit = limit !== Infinity && currentCount >= limit
 
+  // 글쓰기 환경설정 기본값 적용
+  const prefs = getWritingPrefs()
+
   const [title, setTitle] = useState('')
-  const [platform, setPlatform] = useState<Platform>('bookk')
-  const [genre, setGenre] = useState('')
-  const [targetWords, setTargetWords] = useState(30000)
+  const [platform, setPlatform] = useState<Platform>(prefs.defaultPlatform)
+  const [genre, setGenre] = useState(prefs.defaultGenre)
+  const [targetWords, setTargetWords] = useState(
+    prefs.defaultGenre && GENRE_TARGET_WORDS[prefs.defaultGenre]
+      ? GENRE_TARGET_WORDS[prefs.defaultGenre]
+      : 30000,
+  )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -151,13 +171,26 @@ export default function NewProjectModal({ onClose, currentCount, plan }: NewProj
 
             {/* 장르 */}
             <div>
-              <label className="block text-sm font-medium mb-1.5">장르</label>
+              <label className="block text-sm font-medium mb-1.5">
+                장르
+                {genre && GENRE_TARGET_WORDS[genre] && (
+                  <span className="ml-2 text-xs font-normal text-gray-400">
+                    권장 분량: {GENRE_TARGET_WORDS[genre].toLocaleString('ko-KR')}자
+                  </span>
+                )}
+              </label>
               <div className="flex flex-wrap gap-2">
                 {GENRES.map((g) => (
                   <button
                     key={g}
                     type="button"
-                    onClick={() => setGenre(genre === g ? '' : g)}
+                    onClick={() => {
+                      const next = genre === g ? '' : g
+                      setGenre(next)
+                      if (next && GENRE_TARGET_WORDS[next]) {
+                        setTargetWords(GENRE_TARGET_WORDS[next])
+                      }
+                    }}
                     className={cn(
                       'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
                       genre === g
