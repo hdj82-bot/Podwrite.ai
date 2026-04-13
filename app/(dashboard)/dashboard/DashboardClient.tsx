@@ -92,7 +92,7 @@ export default function DashboardClient({
           <p className="text-xs text-gray-400 mt-1">다른 검색어나 필터를 시도해 보세요.</p>
         </div>
       ) : (
-        <ProjectGrid projects={filteredProjects} />
+        <ProjectGrid projects={filteredProjects} plan={plan} />
       )}
 
       {/* 새 프로젝트 모달 */}
