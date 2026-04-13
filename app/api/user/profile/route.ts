@@ -5,6 +5,7 @@ import { createServerClient } from '@/lib/supabase-server'
 const patchSchema = z.object({
   terms_agreed_at: z.string().datetime().optional(),
   privacy_agreed_at: z.string().datetime().optional(),
+  display_name: z.string().max(50).optional(),
 })
 
 // ── GET /api/user/profile ─────────────────────────────────────
