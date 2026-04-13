@@ -11,7 +11,7 @@
  *   - 상단 바에 "내보내기" 버튼 + ExportModal 추가
  *   - onInsert → editorBridge.insert(text) 호출
  */
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import {
   ChevronLeft,
@@ -21,7 +21,7 @@ import {
   Plus,
   Download,
   History,
-  SpellCheck,
+  Check,
 } from 'lucide-react'
 import TipTapEditor from './TipTapEditor'
 import AIChatSidebar from './AIChatSidebar'
@@ -51,6 +51,11 @@ export default function EditorPage({
   const [showExport, setShowExport] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [adding, setAdding] = useState(false)
+
+  // 챕터 인라인 이름 변경
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const renameInputRef = useRef<HTMLInputElement>(null)
 
   // 챕터별 글자 수 (TipTapEditor에서 실시간 업데이트)
   const [wordCounts, setWordCounts] = useState<Record<string, number>>(
@@ -88,6 +93,31 @@ export default function EditorPage({
   const handleInsert = useCallback((text: string) => {
     editorBridge.insert(text)
   }, [])
+
+  // 챕터 이름 변경 시작
+  const startRename = useCallback((chapter: typeof chapters[0]) => {
+    setRenamingId(chapter.id)
+    setRenameValue(chapter.title)
+    setTimeout(() => renameInputRef.current?.select(), 0)
+  }, [])
+
+  // 챕터 이름 변경 확정
+  const commitRename = useCallback(async (id: string) => {
+    const trimmed = renameValue.trim()
+    if (!trimmed) {
+      setRenamingId(null)
+      return
+    }
+    setChapters((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, title: trimmed } : c)),
+    )
+    setRenamingId(null)
+    await fetch(`/api/chapters/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: trimmed }),
+    })
+  }, [renameValue])
 
   // VersionHistoryPanel → 버전 복원 후 패널 닫기
   const handleRestore = useCallback((content: TipTapDocument) => {
@@ -135,22 +165,42 @@ export default function EditorPage({
         <nav className="flex-1 overflow-y-auto py-1">
           {chapters.map((chapter) => {
             const isSelected = selectedChapterId === chapter.id
+            const wc = wordCounts[chapter.id] ?? chapter.word_count
+            const readingMin = Math.max(1, Math.round(wc / 200))
+            const isRenaming = renamingId === chapter.id
             return (
-              <button
+              <div
                 key={chapter.id}
-                onClick={() => setSelectedChapterId(chapter.id)}
                 className={cn(
-                  'w-full text-left px-3 py-2 transition-colors border-l-2',
+                  'w-full text-left px-3 py-2 transition-colors border-l-2 cursor-pointer',
                   isSelected
                     ? 'bg-white text-gray-900 font-medium border-black'
                     : 'text-gray-600 hover:bg-white hover:text-gray-900 border-transparent',
                 )}
+                onClick={() => !isRenaming && setSelectedChapterId(chapter.id)}
+                onDoubleClick={() => startRename(chapter)}
               >
-                <span className="block text-sm truncate">{chapter.title}</span>
+                {isRenaming ? (
+                  <input
+                    ref={renameInputRef}
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={() => commitRename(chapter.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitRename(chapter.id)
+                      if (e.key === 'Escape') setRenamingId(null)
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full text-sm bg-white border border-gray-300 rounded px-1 py-0.5 focus:outline-none focus:border-black"
+                    autoFocus
+                  />
+                ) : (
+                  <span className="block text-sm truncate">{chapter.title}</span>
+                )}
                 <span className="block text-xs text-gray-400 mt-0.5">
-                  {(wordCounts[chapter.id] ?? chapter.word_count).toLocaleString('ko-KR')}자
+                  {wc.toLocaleString('ko-KR')}자 · {readingMin}분
                 </span>
-              </button>
+              </div>
             )
           })}
         </nav>
@@ -171,7 +221,8 @@ export default function EditorPage({
       {/* ── 에디터 영역 ────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* 상단 바 */}
-        <header className="flex items-center justify-between px-3 py-2 border-b border-gray-200 bg-white flex-shrink-0 h-11">
+        <header className="flex flex-col border-b border-gray-200 bg-white flex-shrink-0">
+          <div className="flex items-center justify-between px-3 py-2 h-11">
           {/* 좌측: 챕터 패널 토글 */}
           <button
             onClick={() => setChapterPanelOpen((v) => !v)}
@@ -185,7 +236,28 @@ export default function EditorPage({
             )}
           </button>
 
-          {/* 우측: 내보내기 + AI 보조 */}
+          {/* 우측: 목표 진행률 + 버튼들 */}
+          <div className="flex items-center gap-3">
+            {/* 집필 목표 진행률 */}
+            {project.target_words > 0 && (() => {
+              const pct = Math.min(100, Math.round((totalWords / project.target_words) * 100))
+              const done = pct >= 100
+              return (
+                <div className="flex items-center gap-2">
+                  <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={cn('h-full rounded-full transition-all', done ? 'bg-green-500' : 'bg-orange-400')}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className={cn('text-xs tabular-nums', done ? 'text-green-600 font-medium' : 'text-gray-400')}>
+                    {done
+                      ? <span className="flex items-center gap-0.5"><Check className="w-3 h-3" />목표 달성</span>
+                      : `${pct}%`}
+                  </span>
+                </div>
+              )
+            })()}
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setShowHistory((v) => !v)}
@@ -226,6 +298,8 @@ export default function EditorPage({
               AI 보조
             </button>
           </div>
+          </div>
+          </div>
         </header>
 
         {/* TipTap 에디터 */}
@@ -264,6 +338,7 @@ export default function EditorPage({
       >
         <AIChatSidebar
           projectId={project.id}
+          chapterId={selectedChapterId ?? undefined}
           onInsert={handleInsert}
         />
       </aside>
