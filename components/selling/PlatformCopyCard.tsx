@@ -53,18 +53,19 @@ export default function PlatformCopyCard({
   const range = type === 'description' && platform ? DESCRIPTION_RANGE[platform] : undefined
 
   // ── 글자 수 색상 피드백 ─────────────────────────────────────────
+  // 미달: amber / 초과: red / 범위 내: gray
   function charColor(): string {
     if (!range) return 'text-gray-400'
-    if (charCount < range.min) return 'text-red-500'
-    if (charCount > range.max) return 'text-amber-600'
-    return 'text-green-600'
+    if (charCount < range.min) return 'text-amber-600'
+    if (charCount > range.max) return 'text-red-500'
+    return 'text-gray-400'
   }
 
   function charBadge(): { text: string; cls: string } | null {
     if (!range) return null
-    if (charCount < range.min) return { text: '너무 짧음', cls: 'bg-red-50 text-red-600 border-red-200' }
-    if (charCount > range.max) return { text: '권장 초과', cls: 'bg-amber-50 text-amber-700 border-amber-200' }
-    return { text: '적정 범위', cls: 'bg-green-50 text-green-700 border-green-200' }
+    if (charCount < range.min) return { text: '권장 범위보다 짧습니다', cls: 'bg-amber-50 text-amber-700 border-amber-200' }
+    if (charCount > range.max) return { text: '최대 글자 수 초과', cls: 'bg-red-50 text-red-600 border-red-200' }
+    return null
   }
 
   // ── 클립보드 복사 ────────────────────────────────────────────────
@@ -169,10 +170,10 @@ export default function PlatformCopyCard({
               className={cn(
                 'h-full rounded-full transition-all duration-300',
                 charCount < range.min
-                  ? 'bg-red-400'
-                  : charCount > range.max
                   ? 'bg-amber-400'
-                  : 'bg-green-400',
+                  : charCount > range.max
+                  ? 'bg-red-400'
+                  : 'bg-gray-300',
               )}
               style={{ width: `${Math.min((charCount / range.max) * 100, 100)}%` }}
             />
