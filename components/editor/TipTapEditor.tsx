@@ -21,6 +21,7 @@ import { useEffect, useRef, useCallback, useState } from 'react'
 import EditorToolbar from './EditorToolbar'
 import { editorBridge } from './editorBridge'
 import { getWritingPrefs } from '@/lib/writing-prefs'
+import { useToast } from '@/components/ui/Toast'
 
 export type SaveStatus = 'saved' | 'saving' | 'unsaved'
 
@@ -50,6 +51,10 @@ export default function TipTapEditor({ chapterId, onWordCountChange, onSpellChec
   const chapterIdRef = useRef(chapterId)
   chapterIdRef.current = chapterId
 
+  const { toast } = useToast()
+  // 자동저장 실패 토스트 중복 방지 (5분 쿨다운)
+  const lastFailToastRef = useRef<number>(0)
+
   // ── 저장 함수 ──────────────────────────────────────────────────────────
   const doSave = useCallback(
     async (trigger: 'autosave' | 'manual') => {
@@ -65,12 +70,26 @@ export default function TipTapEditor({ chapterId, onWordCountChange, onSpellChec
             trigger,
           }),
         })
-        setSaveStatus(res.ok ? 'saved' : 'unsaved')
+        if (res.ok) {
+          setSaveStatus('saved')
+        } else {
+          setSaveStatus('unsaved')
+          const now = Date.now()
+          if (now - lastFailToastRef.current > 5 * 60 * 1000) {
+            lastFailToastRef.current = now
+            toast('자동저장에 실패했습니다. 인터넷 연결을 확인해 주세요.', 'error')
+          }
+        }
       } catch {
         setSaveStatus('unsaved')
+        const now = Date.now()
+        if (now - lastFailToastRef.current > 5 * 60 * 1000) {
+          lastFailToastRef.current = now
+          toast('자동저장에 실패했습니다. 인터넷 연결을 확인해 주세요.', 'error')
+        }
       }
     },
-    [chapterId],
+    [chapterId, toast],
   )
 
   // ── 자동저장 debounce (환경설정 autosaveInterval) ─────────────────────

@@ -387,6 +387,7 @@ export default function CopyGenerator({ projectId, title, genre }: CopyGenerator
     a.download = `${title}_마케팅_패키지.txt`
     a.click()
     URL.revokeObjectURL(url)
+    toast('파일이 다운로드되었습니다.', 'success')
   }
 
   // ── 비교 모달에서 보여줄 버전 2개 ────────────────────────────────
