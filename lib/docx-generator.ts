@@ -27,16 +27,15 @@ import {
   convertMillimetersToTwip,
 } from 'docx'
 import * as fs from 'fs'
-import * as path from 'path'
 import type { TipTapDocument, TipTapNode, TipTapMark, Platform } from '@/types'
 import { getPlatformSpec } from '@/lib/platform-specs'
+import { getNanumGothicPath } from '@/lib/get-font-path'
 
 // ── 폰트 임베딩 ───────────────────────────────────────────────────────
 
 function loadFontBuffer(): Buffer | null {
   try {
-    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NanumGothic.otf')
-    return fs.readFileSync(fontPath)
+    return fs.readFileSync(getNanumGothicPath())
   } catch {
     console.warn('[docx-generator] NanumGothic.otf 폰트 파일을 찾을 수 없습니다.')
     return null

@@ -8,6 +8,7 @@
  *   3. DOCX 생성 + Storage 업로드 (단일 step — Buffer 직렬화 방지)
  *   4. 서명된 다운로드 URL 생성 (24시간 유효)
  *   5. 완료 이메일 발송
+ *   6. file_exports INSERT → Supabase Realtime 클라이언트 알림
  */
 
 import { inngest } from './client'
@@ -52,7 +53,10 @@ export const generateDocxJob = inngest.createFunction(
 
         if (chErr) throw new Error(`챕터 조회 실패: ${chErr.message}`)
         return { project: proj, chapters: chs ?? [] }
-      }) as unknown as { project: { id: string; title: string; user_id: string }; chapters: { id: string; title: string; content: unknown; order_idx: number }[] }
+      }) as unknown as {
+        project: { id: string; title: string; user_id: string }
+        chapters: { id: string; title: string; content: unknown; order_idx: number }[]
+      }
 
       projectTitle = project.title
 
@@ -60,13 +64,13 @@ export const generateDocxJob = inngest.createFunction(
       const { email, authorName } = await step.run('fetch-user', async () => {
         const { data } = await supabase
           .from('users')
-          .select('email')
+          .select('email, display_name')
           .eq('id', user_id)
           .single()
-        const emailVal = (data as { email: string } | null)?.email ?? null
+        const row = data as { email: string; display_name: string | null } | null
         return {
-          email: emailVal,
-          authorName: emailVal?.split('@')[0] ?? '작가',
+          email:      row?.email ?? null,
+          authorName: row?.display_name ?? row?.email?.split('@')[0] ?? '작가',
         }
       }) as unknown as { email: string | null; authorName: string }
 
@@ -80,24 +84,21 @@ export const generateDocxJob = inngest.createFunction(
           authorName,
           platform,
           chapters: chapters.map((ch) => ({
-            title: ch.title,
-            content: ch.content as TipTapDocument | null,
+            title:     ch.title,
+            content:   ch.content as TipTapDocument | null,
             order_idx: ch.order_idx,
           })),
-          includePageNumber: include_page_number ?? true,
+          includePageNumber:  include_page_number ?? true,
           includeHeaderTitle: include_header_title ?? false,
         })
 
         const filePath = `${user_id}/${project_id}/export-${platform}.docx`
-
         const { error } = await supabase.storage
           .from('project-files')
           .upload(filePath, buf, {
-            contentType:
-              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             upsert: true,
           })
-
         if (error) throw new Error(`Storage 업로드 실패: ${error.message}`)
         return filePath
       }) as string
@@ -106,8 +107,7 @@ export const generateDocxJob = inngest.createFunction(
       const downloadUrl = await step.run('create-signed-url', async () => {
         const { data, error } = await supabase.storage
           .from('project-files')
-          .createSignedUrl(storagePath, 86400)
-
+          .createSignedUrl(storagePath, 86_400)
         if (error) throw new Error(`서명 URL 생성 실패: ${error.message}`)
         return data.signedUrl
       }) as string
@@ -118,18 +118,46 @@ export const generateDocxJob = inngest.createFunction(
         await sendFileReadyEmail(userEmail, project.title, 'DOCX', downloadUrl, 24)
       })
 
+      // ── 6. file_exports INSERT → Supabase Realtime 클라이언트 알림 ────
+      // 클라이언트: file_exports 테이블 INSERT 이벤트 구독으로 완료 감지
+      await step.run('notify-realtime', async () => {
+        const expiresAt = new Date(Date.now() + 24 * 3_600_000).toISOString()
+        await supabase.from('file_exports').insert({
+          project_id,
+          user_id,
+          file_type:    'docx',
+          platform,
+          language:     null,
+          status:       'completed',
+          download_url: downloadUrl,
+          storage_path: storagePath,
+          expires_at:   expiresAt,
+        })
+      })
+
       return {
-        success: true,
+        success:      true,
         project_id,
         platform,
         storage_path: storagePath,
         download_url: downloadUrl,
       }
+
     } catch (error) {
       Sentry.captureException(error, {
         extra: { project_id, user_id, platform },
         tags: { job: 'generate-docx' },
       })
+
+      // 실패 상태를 file_exports에 기록 (클라이언트 폴링 대비)
+      await supabase.from('file_exports').insert({
+        project_id,
+        user_id,
+        file_type: 'docx',
+        platform,
+        language:  null,
+        status:    'failed',
+      }).catch(() => {})
 
       if (userEmail) {
         await sendFileFailedEmail(userEmail, projectTitle, 'DOCX').catch(() => {})

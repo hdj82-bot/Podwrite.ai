@@ -3,7 +3,7 @@
  *
  * 부크크: 148×210mm, 여백 상하20 좌우25, 나눔고딕 11pt
  * 교보:   152×225mm, 여백 상하20 좌우25, 나눔고딕 10.5pt
- * KDP:    A5(148×210mm), 여백 인치 기준 (0.75"/0.5")
+ * KDP:    6×9in(152.4×228.6mm), 여백 인치 기준 (0.75"/0.5")
  */
 
 import type { Platform, PlatformSpec } from '@/types'
@@ -44,10 +44,9 @@ export const PLATFORM_SPECS: Record<Platform, PlatformSpec> = {
   },
   kdp: {
     name: 'Amazon KDP',
-    // A5 (5×8in ≈ 127×203mm, KDP 기본 6×9in)
-    // 사용자 요구사항: A5 148×210mm
-    pageWidthMM: 148,
-    pageHeightMM: 210,
+    // KDP 기본 트림: 6×9인치 = 152.4×228.6mm (논픽션 표준)
+    pageWidthMM: 152.4,
+    pageHeightMM: 228.6,
     // KDP 공식 여백: 상하 0.75" = 19.05mm, 좌우 0.5" = 12.7mm
     marginTopMM: 19.05,
     marginBottomMM: 19.05,

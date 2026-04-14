@@ -5,6 +5,11 @@ const nextConfig: NextConfig = {
   // docx, jszip는 Node.js 전용 모듈 — Edge/클라이언트 번들에서 제외
   serverExternalPackages: ['docx', 'jszip'],
 
+  // Vercel 서버리스 번들에 폰트 파일 포함 (fs.readFileSync 사용)
+  outputFileTracingIncludes: {
+    '/api/**': ['./public/fonts/**/*'],
+  },
+
   images: {
     remotePatterns: [
       {

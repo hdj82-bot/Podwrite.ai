@@ -5,6 +5,8 @@
  * 처리:
  *   1. Claude API로 원고 분석 (최대 8,000자)
  *   2. 분석 결과를 diagnostics 테이블에 저장
+ *      - 비회원(user_id=null): expires_at = now + 7일 (자동 만료)
+ *      - 회원: expires_at = null (영구 보존)
  *
  * POST /api/diagnostics 에서 즉시 반환 후 비동기로 실행됨
  */
@@ -48,22 +50,39 @@ ${analysisText}
         const parsed = JSON.parse(extractJson(rawResponse))
 
         const result: DiagnosticReport = {
-          strengths: parsed.strengths ?? [],
-          weaknesses: parsed.weaknesses ?? [],
-          suggestions: parsed.suggestions ?? [],
-          platform_fit: parsed.platform_fit ?? {},
-          overall_score: Number(parsed.overall_score) || 0,
-          word_count: wordCount,
+          strengths:       parsed.strengths       ?? [],
+          weaknesses:      parsed.weaknesses      ?? [],
+          suggestions:     parsed.suggestions     ?? [],
+          platform_fit:    parsed.platform_fit    ?? {},
+          overall_score:   Number(parsed.overall_score) || 0,
+          word_count:      wordCount,
           estimated_pages: Math.ceil(wordCount / 250),
         }
         return result
       }) as DiagnosticReport
 
       // ── 2. 결과 저장 ────────────────────────────────────────────────
+      // 비회원(user_id=null): expires_at = now + 7일 (스토리지 절약)
+      // 회원: expires_at = null (영구 보존)
       await step.run('save-report', async () => {
+        const { data: diagnostic } = await supabase
+          .from('diagnostics')
+          .select('user_id')
+          .eq('id', diagnosticId)
+          .single()
+
+        const isGuest    = !diagnostic?.user_id
+        const expiresAt  = isGuest
+          ? new Date(Date.now() + 7 * 24 * 3_600_000).toISOString()
+          : null
+
         const { error } = await supabase
           .from('diagnostics')
-          .update({ status: 'completed', report })
+          .update({
+            status:     'completed',
+            report,
+            expires_at: expiresAt,
+          })
           .eq('id', diagnosticId)
 
         if (error) throw new Error(`진단 결과 저장 실패: ${error.message}`)
@@ -73,7 +92,7 @@ ${analysisText}
     } catch (error) {
       Sentry.captureException(error, {
         extra: { diagnosticId, fileName },
-        tags: { job: 'analyze-diagnostic' },
+        tags:  { job: 'analyze-diagnostic' },
       })
 
       // 분석 실패 → failed 상태로 업데이트 (폴링에서 감지)
