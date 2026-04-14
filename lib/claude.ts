@@ -97,16 +97,23 @@ function buildHeaders(): Record<string, string> {
  *   data: {"text":"..."}   — 텍스트 청크
  *   data: [DONE]           — 스트림 종료
  *
- * @param messages  대화 히스토리
- * @param mode      집필모드
- * @param onUsage   실제 토큰 사용량 콜백 (스트림 종료 후 호출)
+ * @param messages   대화 히스토리
+ * @param mode       집필모드
+ * @param onUsage    실제 토큰 사용량 콜백 (스트림 종료 후 호출)
+ * @param chapterId  현재 작업 중인 챕터 UUID (시스템 프롬프트 컨텍스트에 포함)
  */
 export function streamClaudeChat(
   messages: ClaudeMessage[],
   mode: StreamingChatMode,
   onUsage: (usage: StreamUsage) => void,
+  chapterId?: string,
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder()
+
+  // 챕터 ID가 있으면 시스템 프롬프트 끝에 컨텍스트로 추가
+  const systemPrompt = chapterId
+    ? `${SYSTEM_PROMPTS[mode]}\n\n[현재 작업 챕터 ID: ${chapterId}]`
+    : SYSTEM_PROMPTS[mode]
 
   return new ReadableStream({
     async start(controller) {
@@ -120,7 +127,7 @@ export function streamClaudeChat(
             model: CLAUDE_MODEL,
             max_tokens: 4096,
             stream: true,
-            system: SYSTEM_PROMPTS[mode],
+            system: systemPrompt,
             messages,
           }),
         })

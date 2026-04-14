@@ -46,7 +46,12 @@ export default function TermsPage() {
       <main className="flex-1">
         <div className="max-w-3xl mx-auto px-6 py-12">
           <h1 className="text-3xl font-extrabold text-gray-900 mb-2">이용약관</h1>
-          <p className="text-sm text-gray-400 mb-10">시행일: 2026년 1월 1일</p>
+          <div className="flex items-center gap-3 mb-10">
+            <span className="inline-flex items-center rounded-full bg-orange-50 border border-orange-200 px-2.5 py-0.5 text-xs font-semibold text-orange-700">
+              버전 2026-04-14
+            </span>
+            <p className="text-sm text-gray-400">시행일: 2026년 4월 14일</p>
+          </div>
 
           <div className="prose prose-gray max-w-none space-y-10 text-sm leading-relaxed text-gray-700">
 
@@ -115,8 +120,9 @@ export default function TermsPage() {
                   대해 일할 계산 환불을 제공합니다. 환불 신청은 support@podwrite.ai로 문의하세요.
                 </li>
                 <li>
-                  구독 해지 후에도 해지일까지 결제된 기간 동안 유료 기능을 계속 이용할 수 있습니다.
-                  해지 이후에는 무료 플랜으로 자동 전환됩니다.
+                  구독 해지 후에도 결제된 만료일까지 유료 기능을 계속 이용할 수 있습니다.
+                  만료일 이후에는 기존에 저장된 원고의 읽기 및 DOCX·PDF 내보내기만 가능하며,
+                  신규 AI 기능 및 파일 생성은 사용할 수 없습니다. 재구독 시 즉시 전체 기능이 복원됩니다.
                 </li>
                 <li>
                   해지 시 이용자의 원고 및 데이터는 30일간 보존되며, 재구독 시 즉시 복원됩니다.
@@ -165,16 +171,54 @@ export default function TermsPage() {
                   장애로 인한 데이터 손실에 대해 회사는 책임을 지지 않습니다.
                 </li>
                 <li>
-                  이용자가 생성·업로드한 콘텐츠로 인해 발생하는 모든 법적 분쟁은 이용자 본인의
-                  책임입니다.
+                  이용자가 생성·업로드한 콘텐츠의 표절, 저작권 침해, 명예훼손 등으로 인해
+                  발생하는 모든 법적 분쟁 및 손해배상 책임은 이용자 본인에게 있습니다.
+                  AI가 생성한 문장이라도 출판·배포 전 저작권 침해 여부는 이용자가 직접 확인하여야 합니다.
                 </li>
               </ol>
             </section>
 
-            {/* 6. 서비스 중단 */}
+            {/* 6. AI 콘텐츠 출판 유의사항 */}
             <section>
               <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b border-gray-100">
-                제6조 서비스 중단 및 종료
+                제6조 AI 생성 콘텐츠 출판 시 유의사항
+              </h2>
+              <p className="mb-3">
+                Amazon KDP, 교보문고 퍼플 등 주요 자가출판 플랫폼은 AI 생성 콘텐츠에 대한
+                별도 신고 또는 표기 의무를 두고 있습니다. Podwrite.ai를 통해 생성된 원고를
+                출판할 경우, 아래 체크리스트를 반드시 확인하시기 바랍니다.
+              </p>
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 space-y-2 text-sm">
+                <p className="font-semibold text-amber-800 mb-2">KDP 제출 전 AI 콘텐츠 체크리스트</p>
+                <ul className="space-y-2 text-amber-900">
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 shrink-0 select-none">☐</span>
+                    <span>AI가 생성한 텍스트·번역이 포함된 경우 KDP 대시보드에서 &ldquo;AI-generated content&rdquo; 항목을 신고했습니까?</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 shrink-0 select-none">☐</span>
+                    <span>AI 생성 문장의 표절 여부를 별도 도구(Copyscape, iThenticate 등)로 검증했습니까?</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 shrink-0 select-none">☐</span>
+                    <span>원고 전체를 직접 읽고 사실 오류, 허위 정보, 부적절한 표현을 수정했습니까?</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 shrink-0 select-none">☐</span>
+                    <span>제출 예정 플랫폼의 최신 AI 정책 변경 사항을 직접 확인했습니까?</span>
+                  </li>
+                </ul>
+              </div>
+              <p className="mt-3 text-xs text-gray-500">
+                위 체크리스트는 참고용입니다. 정책 위반으로 인한 계정 정지·원고 삭제 등의
+                불이익에 대해 회사는 책임을 지지 않습니다.
+              </p>
+            </section>
+
+            {/* 7. 서비스 중단 */}
+            <section>
+              <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b border-gray-100">
+                제7조 서비스 중단 및 종료
               </h2>
               <p>
                 회사는 시스템 점검, 업그레이드, 불가피한 사유로 서비스를 일시 중단할 수 있습니다.
@@ -184,10 +228,10 @@ export default function TermsPage() {
               </p>
             </section>
 
-            {/* 7. 약관 변경 */}
+            {/* 8. 약관 변경 */}
             <section>
               <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b border-gray-100">
-                제7조 약관 변경
+                제8조 약관 변경
               </h2>
               <p>
                 회사는 관련 법령이나 서비스 정책 변경에 따라 본 약관을 개정할 수 있습니다.
@@ -197,10 +241,10 @@ export default function TermsPage() {
               </p>
             </section>
 
-            {/* 8. 연락처 */}
+            {/* 9. 연락처 */}
             <section>
               <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b border-gray-100">
-                제8조 연락처
+                제9조 연락처
               </h2>
               <p>
                 본 약관 또는 서비스 이용에 관한 문의는 아래로 연락하세요.

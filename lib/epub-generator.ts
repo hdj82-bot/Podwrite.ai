@@ -16,14 +16,14 @@
 
 import JSZip from 'jszip'
 import * as fs from 'fs'
-import * as path from 'path'
+import { getNanumGothicPath } from '@/lib/get-font-path'
 import type { TipTapDocument, TipTapNode, TipTapMark } from '@/types'
 
 // ── 폰트 로드 (실패 시 null → 시스템 폰트 폴백) ──────────────────────
 
 function loadFontBuffer(): Buffer | null {
   try {
-    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NanumGothic.otf')
+    const fontPath = getNanumGothicPath()
     return fs.readFileSync(fontPath)
   } catch {
     console.warn('[epub-generator] NanumGothic.otf 폰트 파일을 찾을 수 없습니다. 시스템 폰트를 사용합니다.')
@@ -356,7 +356,7 @@ function contentOpf(
     .join('\n')
 
   const fontManifest = hasFontFile
-    ? `    <item id="font-nanum" href="fonts/NanumGothic.otf" media-type="font/otf"/>\n`
+    ? `    <item id="font-nanum" href="fonts/NanumGothic.otf" media-type="application/vnd.ms-opentype"/>\n`
     : ''
 
   const isbnMeta = isbn ? `    <dc:identifier id="isbn">urn:isbn:${escapeHtml(isbn)}</dc:identifier>\n` : ''

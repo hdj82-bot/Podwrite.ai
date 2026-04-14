@@ -46,7 +46,12 @@ export default function PrivacyPage() {
       <main className="flex-1">
         <div className="max-w-3xl mx-auto px-6 py-12">
           <h1 className="text-3xl font-extrabold text-gray-900 mb-2">개인정보처리방침</h1>
-          <p className="text-sm text-gray-400 mb-10">시행일: 2026년 1월 1일</p>
+          <div className="flex items-center gap-3 mb-10">
+            <span className="inline-flex items-center rounded-full bg-orange-50 border border-orange-200 px-2.5 py-0.5 text-xs font-semibold text-orange-700">
+              버전 2026-04-14
+            </span>
+            <p className="text-sm text-gray-400">시행일: 2026년 4월 14일</p>
+          </div>
 
           <div className="space-y-10 text-sm leading-relaxed text-gray-700">
 
@@ -135,8 +140,13 @@ export default function PrivacyPage() {
                       <td className="px-4 py-3 text-gray-600">서비스 운영 정책</td>
                     </tr>
                     <tr>
-                      <td className="px-4 py-3 font-medium text-gray-800">원고 및 파일</td>
+                      <td className="px-4 py-3 font-medium text-gray-800">원고 및 파일 (회원)</td>
                       <td className="px-4 py-3 text-gray-600">구독 해지 후 30일 (이후 영구 삭제)</td>
+                      <td className="px-4 py-3 text-gray-600">서비스 운영 정책</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 font-medium text-gray-800">임시 파일 (비회원)</td>
+                      <td className="px-4 py-3 text-gray-600">생성 후 7일 (이후 자동 삭제)</td>
                       <td className="px-4 py-3 text-gray-600">서비스 운영 정책</td>
                     </tr>
                     <tr>
@@ -163,6 +173,13 @@ export default function PrivacyPage() {
                 회사는 서비스 운영을 위해 아래 업체에 개인정보 처리를 위탁합니다.
                 수탁 업체는 위탁 목적 이외의 용도로 개인정보를 이용하지 않습니다.
               </p>
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 mb-3 text-xs text-blue-800">
+                <span className="font-semibold">AI 서버 전송 안내:</span> 이용자가 집필 보조,
+                자료 검색, 번역 등 AI 기능을 사용하면 해당 요청과 관련된 원고 일부가
+                Anthropic(Claude) 및 Perplexity AI 서버로 전송됩니다.
+                전송된 데이터는 각 업체의 API 이용 정책에 따라 처리되며,
+                회사의 AI 학습 데이터로는 사용되지 않습니다.
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
                   <thead>
@@ -195,9 +212,18 @@ export default function PrivacyPage() {
                     <tr>
                       <td className="px-4 py-3 font-medium text-gray-800">Anthropic, PBC</td>
                       <td className="px-4 py-3 text-gray-600">
-                        Claude AI API 처리 (집필 보조, 번역 요청 내용)
+                        Claude AI API — 집필 보조·교열·번역 기능 처리 시
+                        요청 내용(원고 일부) 전송
                       </td>
                       <td className="px-4 py-3 text-gray-600">Anthropic 정책에 따름</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 font-medium text-gray-800">Perplexity AI, Inc.</td>
+                      <td className="px-4 py-3 text-gray-600">
+                        Perplexity API — 자료 검색·참고문헌 생성 기능 처리 시
+                        검색 쿼리 및 관련 원고 일부 전송
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">Perplexity 정책에 따름</td>
                     </tr>
                   </tbody>
                 </table>
@@ -207,10 +233,37 @@ export default function PrivacyPage() {
               </p>
             </section>
 
+            {/* 서비스 종료 시 데이터 내보내기 */}
+            <section>
+              <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b border-gray-100">
+                제5조 서비스 종료 시 데이터 내보내기 보장
+              </h2>
+              <p className="mb-3">
+                회사가 서비스를 영구 종료하는 경우, 이용자의 원고 및 데이터 보호를 위해
+                아래 절차를 보장합니다.
+              </p>
+              <ol className="list-decimal list-inside space-y-2 pl-1">
+                <li>
+                  서비스 종료 공지일로부터 <span className="font-semibold">30일</span> 이내에
+                  모든 활성 계정의 이용자는 저장된 원고를 DOCX 및 PDF 형식으로 내보낼 수 있습니다.
+                </li>
+                <li>
+                  내보내기 기능은 유료·무료 플랜 구분 없이 동일하게 제공됩니다.
+                </li>
+                <li>
+                  30일 내보내기 기간이 종료된 이후에는 모든 원고 및 사용자 데이터가
+                  영구 삭제됩니다.
+                </li>
+                <li>
+                  종료 공지는 가입 이메일과 서비스 내 공지를 통해 최소 30일 전에 발송됩니다.
+                </li>
+              </ol>
+            </section>
+
             {/* 이용자 권리 */}
             <section>
               <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b border-gray-100">
-                제5조 이용자의 권리
+                제6조 이용자의 권리
               </h2>
               <p className="mb-3">이용자는 언제든지 다음 권리를 행사할 수 있습니다.</p>
               <ul className="list-disc list-inside space-y-2 pl-1">
@@ -243,7 +296,7 @@ export default function PrivacyPage() {
             {/* 쿠키·분석 */}
             <section>
               <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b border-gray-100">
-                제6조 쿠키 및 분석 도구
+                제7조 쿠키 및 분석 도구
               </h2>
               <ol className="list-decimal list-inside space-y-2 pl-1">
                 <li>
@@ -265,7 +318,7 @@ export default function PrivacyPage() {
             {/* 문의 */}
             <section>
               <h2 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b border-gray-100">
-                제7조 개인정보 보호 문의
+                제8조 개인정보 보호 문의
               </h2>
               <p>
                 개인정보 처리에 관한 문의, 불만 접수, 권리 행사 요청은 아래로 연락하세요.

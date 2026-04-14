@@ -14,6 +14,7 @@ import { getCurrentUserWithProfile } from '@/lib/supabase-server'
 import { streamClaudeChat } from '@/lib/claude'
 import {
   chatRateLimit,
+  rateLimitResponse,
   DAILY_TOKEN_LIMITS,
   getDailyTokensUsed,
   incrementDailyTokens,
@@ -30,6 +31,7 @@ const bodySchema = z.object({
     .min(1)
     .max(50),
   mode: z.enum(['writing', 'outline', 'style']),
+  chapter_id: z.string().uuid().optional(),
 })
 
 export async function POST(req: Request) {
@@ -40,13 +42,8 @@ export async function POST(req: Request) {
   }
 
   // ── 분당 요청 제한 ────────────────────────────────────────────
-  const { success: rateLimitOk } = await chatRateLimit.limit(authUser.id)
-  if (!rateLimitOk) {
-    return NextResponse.json(
-      { error: '요청이 너무 많습니다. 잠시 후 다시 시도하세요.' },
-      { status: 429 },
-    )
-  }
+  const { success: rateLimitOk, reset } = await chatRateLimit.limit(authUser.id)
+  if (!rateLimitOk) return rateLimitResponse(reset)
 
   // ── 플랜별 일일 토큰 한도 확인 ───────────────────────────────
   const plan = profile.plan
@@ -79,6 +76,7 @@ export async function POST(req: Request) {
       // 스트림 종료 후 실제 토큰 수 기록 (비동기, 실패해도 무시)
       incrementDailyTokens(authUser.id, input_tokens + output_tokens).catch(() => {})
     },
+    body.chapter_id,
   )
 
   return new Response(stream, {
