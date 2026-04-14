@@ -22,7 +22,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser, createServiceClient } from '@/lib/supabase-server'
-import { diagnosticsRateLimit } from '@/lib/rate-limit'
+import { diagnosticsRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 import { inngest } from '@/inngest/client'
 
 // Supabase Storage 버킷명
@@ -35,15 +35,10 @@ const ALLOWED_TYPES = ['text/plain', 'text/markdown', 'application/octet-stream'
 // ── POST: 원고 업로드 + 진단 ──────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  // ── Rate Limiting (IP 기반, 시간당 3회) ──────────────────────────
+  // ── Rate Limiting (IP 기반, 분당 1회) ───────────────────────────
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'anon'
-  const { success } = await diagnosticsRateLimit.limit(ip)
-  if (!success) {
-    return NextResponse.json(
-      { error: '잠시 후 다시 시도해 주세요. (시간당 3회 제한)' },
-      { status: 429 },
-    )
-  }
+  const { success, reset } = await diagnosticsRateLimit.limit(ip)
+  if (!success) return rateLimitResponse(reset)
 
   // 비회원도 허용 — authUser가 없으면 session_token만 사용
   const authUser = await getCurrentUser()

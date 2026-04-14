@@ -129,8 +129,9 @@ export default function TipTapEditor({ chapterId, onWordCountChange, onSpellChec
         // 일부 브라우저(Chrome/Windows)에서 compositionend 전에 keydown이 발화되어
         // 미완성 음절이 확정되는 동시에 새 단락이 삽입되는 버그를 막음
         keydown: (view, event) => {
-          if (view.composing && event.key === 'Enter') {
-            return true
+          if (view.composing) {
+            if (event.key === 'Enter') return true
+            if (event.key === 'ArrowUp' || event.key === 'ArrowDown') return true
           }
           return false
         },
@@ -149,14 +150,14 @@ export default function TipTapEditor({ chapterId, onWordCountChange, onSpellChec
 
       latestContent.current = doc
       latestWordCount.current = chars
-      setWordCount(chars)
-      onWordCountChange(chars)
-      setSaveStatus('unsaved')
 
       // ProseMirror 내장 composing 플래그:
       // 한글 자모 조합 중(compositionstart ~ compositionend)에는 true
-      // → 조합 완료 후 scheduleAutosave()가 별도로 호출됨
+      // → 조합 중 word count 갱신 억제, 조합 완료 후 scheduleAutosave()가 별도로 호출됨
       if (!editor.view.composing) {
+        setWordCount(chars)
+        onWordCountChange(chars)
+        setSaveStatus('unsaved')
         scheduleAutosave()
       }
     }

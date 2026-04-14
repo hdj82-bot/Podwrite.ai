@@ -16,7 +16,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/supabase-server'
 import { checkSpelling } from '@/lib/spellcheck'
-import { spellcheckRateLimit } from '@/lib/rate-limit'
+import { spellcheckRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 const bodySchema = z.object({
   text: z.string().min(1).max(50_000),
@@ -30,13 +30,8 @@ export async function POST(req: Request) {
   }
 
   // ── 분당 요청 제한 ────────────────────────────────────────────
-  const { success: rateLimitOk } = await spellcheckRateLimit.limit(user.id)
-  if (!rateLimitOk) {
-    return NextResponse.json(
-      { error: '요청이 너무 많습니다. 잠시 후 다시 시도하세요.' },
-      { status: 429 },
-    )
-  }
+  const { success: rateLimitOk, reset } = await spellcheckRateLimit.limit(user.id)
+  if (!rateLimitOk) return rateLimitResponse(reset)
 
   // ── 요청 파싱 ────────────────────────────────────────────────
   let body: z.infer<typeof bodySchema>

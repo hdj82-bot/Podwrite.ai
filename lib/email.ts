@@ -118,6 +118,82 @@ export async function sendBillingSuccessEmail(
   })
 }
 
+// ── 결제 실패 재시도 안내 이메일 (1·2차 실패, 재시도 예정) ───────────────────────
+
+export async function sendBillingRetryEmail(
+  to: string,
+  name: string,
+  attempt: number,
+  retryDate: Date,
+): Promise<void> {
+  const resend = getResend()
+  const retryDateFormatted = retryDate.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+  const remainingAttempts = 3 - attempt
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `[Podwrite.ai] 결제 실패 안내 — ${retryDateFormatted}에 재시도됩니다`,
+    html: wrapHtml(`
+      <h2 style="margin-top: 0; color: #111827;">결제 실패 안내</h2>
+      <p>안녕하세요, ${name}님.</p>
+      <p>정기결제 처리 중 오류가 발생했습니다.<br/>
+      <strong>${retryDateFormatted}</strong>에 자동으로 재시도합니다.</p>
+      <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 20px 0; font-size: 14px;">
+        남은 재시도 횟수: <strong>${remainingAttempts}회</strong><br/>
+        재시도가 모두 실패하면 플랜이 무료로 변경됩니다.
+      </div>
+      <p style="font-size: 14px; color: #374151;">
+        카드 정보를 미리 확인하거나 결제 수단을 변경하시면 재시도 시 정상 처리됩니다.
+      </p>
+      ${ctaButton('결제 수단 변경하기', `${APP_URL}/settings/billing`)}
+      <p style="margin-top: 24px; font-size: 14px; color: #6b7280;">
+        문의사항은 <a href="mailto:support@podwrite.ai" style="color: #2563eb;">support@podwrite.ai</a>로 연락 주세요.
+      </p>
+    `),
+  })
+}
+
+// ── 구독 만료 D-7 알림 이메일 ──────────────────────────────────────────────────
+
+export async function sendSubscriptionExpiringEmail(
+  to: string,
+  name: string,
+  plan: string,
+  expiresAt: Date,
+): Promise<void> {
+  const resend = getResend()
+  const planDisplay = PLAN_DISPLAY[plan] ?? plan.toUpperCase()
+  const expiresFormatted = expiresAt.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `[Podwrite.ai] ${planDisplay} 플랜이 7일 후 만료됩니다`,
+    html: wrapHtml(`
+      <h2 style="margin-top: 0; color: #111827;">구독 만료 예정 안내</h2>
+      <p>안녕하세요, ${name}님.</p>
+      <p><strong>${planDisplay} 플랜</strong>이 <strong>${expiresFormatted}</strong>에 만료됩니다.</p>
+      <div style="background: #eff6ff; border-left: 4px solid #2563eb; padding: 12px 16px; margin: 20px 0; font-size: 14px; line-height: 1.8;">
+        만료 후에도 원고·챕터·다운로드 기능은 <strong>30일간</strong> 유지됩니다.<br/>
+        재구독하시면 모든 기능이 즉시 복원됩니다.
+      </div>
+      ${ctaButton('구독 재시작하기', `${APP_URL}/settings/billing`)}
+      <p style="margin-top: 24px; font-size: 14px; color: #6b7280;">
+        이미 구독을 유지 중이시라면 이 이메일을 무시해 주세요.
+      </p>
+    `),
+  })
+}
+
 // ── 결제 실패 이메일 (최종 실패, 플랜 다운그레이드) ────────────────────────────
 
 export async function sendBillingFailedEmail(to: string, name: string): Promise<void> {

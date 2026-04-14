@@ -13,7 +13,12 @@
 import { inngest } from './client'
 import { createServiceClient } from '@/lib/supabase-server'
 import { chargeBilling, generateOrderId, TossPaymentsError } from '@/lib/toss-payments'
-import { sendBillingFailedEmail } from '@/lib/email'
+import {
+  sendBillingSuccessEmail,
+  sendBillingRetryEmail,
+  sendBillingFailedEmail,
+  sendSubscriptionExpiringEmail,
+} from '@/lib/email'
 
 const PLAN_AMOUNTS: Record<string, number> = {
   basic: 9_900,
@@ -90,6 +95,9 @@ export const billingCycleJob = inngest.createFunction(
               // supabase.from('billing_history').insert({...})
             ])
 
+            // 결제 성공 영수증 이메일
+            await sendBillingSuccessEmailForUser(sub.user_id, sub.plan, amount)
+
             results.success++
           }
         } catch (err) {
@@ -138,6 +146,9 @@ export const billingCycleJob = inngest.createFunction(
               })
               .eq('id', sub.id)
 
+            // 재시도 안내 이메일 (attempt = 경과일 수 + 1)
+            await sendBillingRetryEmailForUser(sub.user_id, daysSinceDue + 1, retryAt)
+
             results.failed++
           }
 
@@ -145,6 +156,39 @@ export const billingCycleJob = inngest.createFunction(
         }
       })
     }
+
+    // ── 3. 구독 만료 D-7 알림 ──────────────────────────────────────────
+    await step.run('notify-expiring-subscriptions', async () => {
+      const d7Start = new Date()
+      d7Start.setDate(d7Start.getDate() + 7)
+      d7Start.setHours(0, 0, 0, 0)
+
+      const d7End = new Date(d7Start)
+      d7End.setHours(23, 59, 59, 999)
+
+      const { data: expiringUsers } = await supabase
+        .from('users')
+        .select('id, email, name, plan, plan_expires_at')
+        .neq('plan', 'free')
+        .gte('plan_expires_at', d7Start.toISOString())
+        .lte('plan_expires_at', d7End.toISOString())
+
+      if (!expiringUsers?.length) return { notified: 0 }
+
+      for (const user of expiringUsers) {
+        if (!user.email || !process.env.SECRET_RESEND_API_KEY) continue
+        await sendSubscriptionExpiringEmail(
+          user.email,
+          user.name ?? user.email.split('@')[0],
+          user.plan,
+          new Date(user.plan_expires_at),
+        ).catch((err) => {
+          console.error(`[billing-cycle] D-7 알림 실패 (${user.id}):`, err)
+        })
+      }
+
+      return { notified: expiringUsers.length }
+    })
 
     return {
       success: true,
@@ -154,18 +198,53 @@ export const billingCycleJob = inngest.createFunction(
   },
 )
 
-// ── 결제 실패 이메일 헬퍼 (userId → 이메일 조회 후 발송) ─────────────────────
+// ── 이메일 헬퍼 함수들 (userId → 이메일·이름 조회 후 발송) ──────────────────────
 
-async function sendBillingFailedEmailForUser(userId: string): Promise<void> {
-  if (!process.env.SECRET_RESEND_API_KEY) return
-
+async function getUser(userId: string) {
   const supabase = createServiceClient()
-  const { data: user } = await supabase
+  const { data } = await supabase
     .from('users')
     .select('email, name')
     .eq('id', userId)
     .single()
-  if (!user?.email) return
+  return data
+}
 
+async function sendBillingSuccessEmailForUser(
+  userId: string,
+  plan: string,
+  amount: number,
+): Promise<void> {
+  if (!process.env.SECRET_RESEND_API_KEY) return
+  const user = await getUser(userId)
+  if (!user?.email) return
+  await sendBillingSuccessEmail(
+    user.email,
+    user.name ?? user.email.split('@')[0],
+    plan,
+    amount,
+  )
+}
+
+async function sendBillingRetryEmailForUser(
+  userId: string,
+  attempt: number,
+  retryDate: Date,
+): Promise<void> {
+  if (!process.env.SECRET_RESEND_API_KEY) return
+  const user = await getUser(userId)
+  if (!user?.email) return
+  await sendBillingRetryEmail(
+    user.email,
+    user.name ?? user.email.split('@')[0],
+    attempt,
+    retryDate,
+  )
+}
+
+async function sendBillingFailedEmailForUser(userId: string): Promise<void> {
+  if (!process.env.SECRET_RESEND_API_KEY) return
+  const user = await getUser(userId)
+  if (!user?.email) return
   await sendBillingFailedEmail(user.email, user.name ?? user.email.split('@')[0])
 }
